@@ -941,17 +941,17 @@ void allocateLeds() {
           // D5-D8 - работают, но это аппаратные SPI, которые использует SD-карта 
           // D9/RX, D10/TX - RX/TX - если включен отладочный вывод в COM-порт - лента работать не будет
           switch (led_pin) {
-            //case 16: /* D0     */ FastLED.addLeds<LED_CHIP, D0, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case  5: /* D1     */ FastLED.addLeds<LED_CHIP, D1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case 16: /* D0     */ FastLED.addLeds<LED_CHIP, D0, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case  5: /* D1     */ FastLED.addLeds<LED_CHIP, D1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
             case  4: /* D2     */ FastLED.addLeds<LED_CHIP, 4 , COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case  0: /* D3     */ FastLED.addLeds<LED_CHIP, D3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case  2: /* D4     */ FastLED.addLeds<LED_CHIP, D4, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case 14: /* D5     */ FastLED.addLeds<LED_CHIP, D5, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case 12: /* D6     */ FastLED.addLeds<LED_CHIP, D6, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case 13: /* D7     */ FastLED.addLeds<LED_CHIP, D7, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case 15: /* D8     */ FastLED.addLeds<LED_CHIP, D8, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            //case  3: /* D9/RX  */ FastLED.addLeds<LED_CHIP,  3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для Wemos определены константы RX(3) и TX(1), но не определены D9 И  D10; 
-            //case  1: /* D10/TX */ FastLED.addLeds<LED_CHIP,  1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для NodeMCU определены константы D9(3) и D10(1), но не определены RX И  TX; 
+//            case  0: /* D3     */ FastLED.addLeds<LED_CHIP, D3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case  2: /* D4     */ FastLED.addLeds<LED_CHIP, D4, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case 14: /* D5     */ FastLED.addLeds<LED_CHIP, D5, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case 12: /* D6     */ FastLED.addLeds<LED_CHIP, D6, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case 13: /* D7     */ FastLED.addLeds<LED_CHIP, D7, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case 15: /* D8     */ FastLED.addLeds<LED_CHIP, D8, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
+//            case  3: /* D9/RX  */ FastLED.addLeds<LED_CHIP,  3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для Wemos определены константы RX(3) и TX(1), но не определены D9 И  D10; 
+//            case  1: /* D10/TX */ FastLED.addLeds<LED_CHIP,  1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для NodeMCU определены константы D9(3) и D10(1), но не определены RX И  TX; 
            }
         #endif
         #if defined(ESP32) 
