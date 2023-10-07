@@ -15,15 +15,15 @@
 // ------------------------ Локальная сеть ---------------------
 
 #ifndef NETWORK_SSID
-#define NETWORK_SSID "your-ssid"                 // Имя WiFi сети
+#define NETWORK_SSID "MTSRouter_0EE9"                 // Имя WiFi сети
 #endif
 
 #ifndef NETWORK_PASS
-#define NETWORK_PASS "your-password"             // Пароль для подключения к WiFi сети
+#define NETWORK_PASS "22547019"             // Пароль для подключения к WiFi сети
 #endif
 
 #ifndef DEFAULT_IP
-#define DEFAULT_IP {192, 168, 0, 100}            // Сетевой адрес устройства по умолчанию
+#define DEFAULT_IP {192, 168, 1, 151}            // Сетевой адрес устройства по умолчанию
 #endif
 
 #ifndef DEFAULT_PORT
@@ -49,7 +49,7 @@
 // ------------ Настройки региона погоды и часового пояса
 
 #ifndef TIME_ZONE
-#define TIME_ZONE        7                      // Смещение часового пояса от UTC (часы)
+#define TIME_ZONE        3                      // Смещение часового пояса от UTC (часы)
 #endif
 
 #ifndef TIME_ZONE_MIN                           // Смещение часового пояса - минуты от UTC. 
