@@ -889,7 +889,7 @@ uint8_t    tmpSaveMode = 0;
 uint8_t    resourcesMode = 0;
 bool       mandatoryStopText = false;
 uint16_t   restartGuard = 0;
-
+bool       wasTurnedOff, touchEffectOff = true;
 unsigned long prevShowTimer = 0;
 
 // --------------------- Для работы с JSON -----------------------

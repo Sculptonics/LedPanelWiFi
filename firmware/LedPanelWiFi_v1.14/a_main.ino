@@ -412,22 +412,29 @@ void process() {
           one_click_time = 0;
         }
         
-        if (butt->isPress()) {
-          // Состояние - кнопку нажали  
+        if (butt->isPress() && touchEffectOff/*&& play_file_finished == true*/) {// Состояние - кнопку нажали  
+          saveMode = thisMode;
+          touchEffectOff = false;
+          wasTurnedOff = isTurnedOff;
+          if (isTurnedOff)//если панель сейчас не включена
+            turnOn();//включаем её
+          set_EffectScaleParam2(MC_SDCARD, 2);//проигрывать будем первый ролик с карты
+          updateSdCardFileIndex();//обновляемся
+          setEffect(MC_SDCARD);//запускаем эффект ролика с карты
         }
         
         if (butt->isRelease()) {
           // Состояние - кнопку отпустили
           isButtonHold = false;
         }
-            
+          
         if (clicks > 0 && !clicks_printed) {
           DEBUG(F("Кнопка нажата "));  
           DEBUG(clicks);
           DEBUGLN(F(" раз"));  
           clicks_printed = true;
         }
-    
+  
         // Любое нажатие кнопки останавливает будильник
         if ((isAlarming || isPlayAlarmSound) && (isButtonHold || clicks > 0)) {
           DEBUG(F("Выключение будильника кнопкой."));  
@@ -435,7 +442,7 @@ void process() {
           clicks_printed = false;
           clicks = 0;
         }
-    
+#ifdef NO_USE_DOOR
         // Одинарный клик - включить / выключить панель
         // Одинарный клик + удержание - ночные часы или ночник лампа на минимальной яркости
         if (clicks == 1 && (((uint32_t)(millis()) - one_click_time) > 500)) {
@@ -457,14 +464,14 @@ void process() {
             one_click_time = 0;
             clicks_printed = false;
          } else {
-           // Однократное короткое нажатие без удержаниz вкл/выкл лампу
+           // Однократное короткое нажатие без удержание вкл лампу
            turnOnOff();
            clicks_printed = false;
            clicks = 0;
            one_click_time = 0;
          }          
        }
-        
+#endif //NO_USE_DOOR
        // Прочие клики работают только если не выключено
        if (isTurnedOff) {
           // Выключить питание матрицы
@@ -477,7 +484,7 @@ void process() {
               }
             }  
           #endif      
-          //  - одинарный клик из выключенного состояния включает устройство - обработка в блоке выше
+#ifdef NO_USE_DOOR //  - одинарный клик из выключенного состояния включает устройство - обработка в блоке выше
           //  - двойной клик из выключенного состояния включает яркий белый свет
           if (clicks == 2) {
             // Включить панель - белый цвет
@@ -489,8 +496,9 @@ void process() {
             FastLED.setBrightness(globalBrightness);
             clicks = 0;
             one_click_time = 0;
-          }          
-       } else {
+          }
+#endif //NO_USE_DOOR          
+        } else {
           
           // Включить питание матрицы
           #if (USE_POWER == 1)
@@ -498,7 +506,18 @@ void process() {
               digitalWrite(vPOWER_PIN, vPOWER_ON);
             }
           #endif
+          if (thisMode == MC_SDCARD && getEffectScaleParamValue2(MC_SDCARD) >= 2){//если текущий ролик - конкретный
+            if (isButtonHold == false &&  play_file_finished){//если за ручку не держимся, и эффект закончился
+              touchEffectOff = true;
+              set_thisMode(saveMode);//устанавливаем сохранённый режим
+              if (wasTurnedOff){//если касание было не в процессе работы
+                turnOff();//выключаем
+              }
+            }  
+          }
 
+          
+#ifdef NO_USE_DOOR
           if (clicks == 0 && butt->isHolded()) {
           // Управление яркостью - только если нажата и уделживается без предварительного короткого нажатия
             isButtonHold = true;
@@ -547,14 +566,15 @@ void process() {
             clicks = 0;
             clicks_printed = false;
           }      
-              
+            
           // ... и т.д.
           
           // Обработка нажатой и удерживаемой кнопки
           if (clicks == 0 && isButtonHold && butt->isStep() && thisMode != MC_DAWN_ALARM) {      
             // Удержание кнопки повышает / понижает яркость панели (лампы)
             processButtonStep();
-          }            
+          }
+#endif //NO_USE_DOOR              
         }
       }  
     #endif
