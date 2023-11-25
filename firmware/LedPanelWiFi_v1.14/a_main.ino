@@ -442,7 +442,7 @@ void process() {
           clicks_printed = false;
           clicks = 0;
         }
-#ifdef NO_USE_DOOR
+
         // Одинарный клик - включить / выключить панель
         // Одинарный клик + удержание - ночные часы или ночник лампа на минимальной яркости
         if (clicks == 1 && (((uint32_t)(millis()) - one_click_time) > 500)) {
@@ -457,21 +457,24 @@ void process() {
               setSpecialMode(1);
               FastLED.setBrightness(globalBrightness);
             } else {
-              // Клик + удержание во включенном состоянии - включить ночные часы
-              setSpecialMode(8);
+              turnOff();
+              clicks_printed = false;
+              clicks = 0;
+              one_click_time = 0;
             }
             clicks = 255;
             one_click_time = 0;
             clicks_printed = false;
+            touchEffectOff = true;//чтобы тач-эффект запускался
          } else {
            // Однократное короткое нажатие без удержание вкл лампу
-           turnOnOff();
+           //turnOnOff();
            clicks_printed = false;
            clicks = 0;
            one_click_time = 0;
          }          
        }
-#endif //NO_USE_DOOR
+
        // Прочие клики работают только если не выключено
        if (isTurnedOff) {
           // Выключить питание матрицы
@@ -506,18 +509,23 @@ void process() {
               digitalWrite(vPOWER_PIN, vPOWER_ON);
             }
           #endif
-          if (thisMode == MC_SDCARD && getEffectScaleParamValue2(MC_SDCARD) >= 2){//если текущий ролик - конкретный
-            if (isButtonHold == false &&  play_file_finished){//если за ручку не держимся, и эффект закончился
-              touchEffectOff = true;
-              set_thisMode(saveMode);//устанавливаем сохранённый режим
-              if (wasTurnedOff){//если касание было не в процессе работы
-                turnOff();//выключаем
+          if (thisMode == MC_SDCARD && getEffectScaleParamValue2(MC_SDCARD) >= 2) { //если текущий ролик - конкретный
+            if (play_file_finished){//если проигрывание файла завершено
+              if (wasTurnedOff) { //если касание было не в процессе работы
+                if (isButtonHold == false) { //если за ручку не держимся
+                  touchEffectOff = true;//снова готовы к запуску файла
+                  set_thisMode(saveMode);//устанавливаем сохранённый режим
+                  turnOff();//выключаем
+                }
+              } else {//если касание было в процессе работы
+                set_thisMode(saveMode);//устанавливаем сохранённый режим
+                touchEffectOff = true;//снова готовы к запуску файла
               }
-            }  
+            }
           }
 
           
-#ifdef NO_USE_DOOR
+
           if (clicks == 0 && butt->isHolded()) {
           // Управление яркостью - только если нажата и уделживается без предварительного короткого нажатия
             isButtonHold = true;
@@ -529,7 +537,7 @@ void process() {
             } else  
               brightDirection = !brightDirection;
           }
-          
+ #ifdef NO_USE_DOOR         
           // Был двойной клик - следующий эффект, сброс автоматического переключения
           if (clicks == 2) {
             bool tmpSaveSpecial = specialMode;
@@ -570,7 +578,7 @@ void process() {
           // ... и т.д.
           
           // Обработка нажатой и удерживаемой кнопки
-          if (clicks == 0 && isButtonHold && butt->isStep() && thisMode != MC_DAWN_ALARM) {      
+          if (clicks == 0 && isButtonHold && butt->isStep() && thisMode != MC_DAWN_ALARM && thisMode != MC_SDCARD) {      
             // Удержание кнопки повышает / понижает яркость панели (лампы)
             processButtonStep();
           }
