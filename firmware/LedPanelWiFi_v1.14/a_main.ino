@@ -447,7 +447,7 @@ void process() {
         // Одинарный клик + удержание - ночные часы или ночник лампа на минимальной яркости
         if (clicks == 1 && (((uint32_t)(millis()) - one_click_time) > 500)) {
           if (butt->isHolded()) {
-            if (isTurnedOff) {
+            if (wasTurnedOff) {
               // Клик + удержание в выключенном состоянии - лампа на минимальной яркости
               // Включить панель - белый цвет
               set_specialBrightness(6);
@@ -576,13 +576,13 @@ void process() {
           }      
             
           // ... и т.д.
-          
+ #endif //NO_USE_DOOR           
           // Обработка нажатой и удерживаемой кнопки
           if (clicks == 0 && isButtonHold && butt->isStep() && thisMode != MC_DAWN_ALARM && thisMode != MC_SDCARD) {      
             // Удержание кнопки повышает / понижает яркость панели (лампы)
             processButtonStep();
           }
-#endif //NO_USE_DOOR              
+            
         }
       }  
     #endif
