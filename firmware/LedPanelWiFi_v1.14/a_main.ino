@@ -533,9 +533,8 @@ void process() {
           
 
           // Одинарный клик + удержание - ночные часы или ночник лампа на минимальной яркости
-          if ((clicks == 1 && (((uint32_t)(millis()) - one_click_time) > 500))||isButtonHold) {
-            if (isHolded) {
-            // Управление яркостью - только если нажата и уделживается без предварительного короткого нажатия
+          if (clicks == 1 && (((uint32_t)(millis()) - one_click_time) > 500) && isHolded) {
+            // Управление яркостью - только если нажата и уделживается с предварительным коротким нажатием
               isButtonHold = true;
               if (globalBrightness == 255)
                 brightDirection = false;
@@ -547,7 +546,6 @@ void process() {
               clicks_printed = false;
               clicks = 0;
               one_click_time = 0;
-            }
           }
         
           // Был двойной клик - отключаем
