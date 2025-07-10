@@ -27,6 +27,7 @@
         display: flex;
         flex-direction: row;
         height: auto;
+        position: relative;
 
         width: 100%;
 
@@ -48,15 +49,86 @@
           height: 104px;
           flex: 1;
 
+          &.power-off {
+            color: var(--power-OFF);
+          }
+
+          &.power-on {
+            &.standalone {
+              color: var(--power-ON);
+            }
+
+            &.master {
+              color: var(--power-ON);
+            }
+
+            &.slave {
+              color: var(--power-slave-ON);
+            }
+          }
+
+          .brightness-label {
+            cursor: default;
+            &.power-on {
+              color: var(--power-ON);
+            }
+            &.power-off {
+              color: var(--power-OFF);
+            }
+          }
+
           span {
             font-size: 13px;
             margin: 25px 0 0 2px;
           }
         }
 
+        .sync-type {
+          font-size: 0.6em;
+          text-align: center;
+          display: flex;
+          position: absolute;
+          width: 60px;
+          height: 18px;
+          color: var(--power-OFF);
+          left: 0;
+          top: 64px;
+          justify-content: center;
+          align-items: center;
+          margin: 0 4px;
+          cursor: default;
+
+          &.master {
+            &.power-on {
+              color: var(--power-ON);
+            }
+            &.power-off {
+              color: var(--power-OFF);
+            }
+          }
+          &.slave {
+            &.stream-on {
+              color: var(--power-slave-ON);
+            }
+            &.stream-off {
+              color: var(--power-OFF);
+            }
+          }
+        }
+
         .brightness-container {
           display: flex;
           flex-direction: column;
+
+          .brightness-slider {
+            &.power-on {
+              color: var(--power-ON) !important;
+            }
+
+            &.power-off {
+              color: var(--power-OFF) !important;
+            }
+          }
         }
 
         .brightness-buttons {
@@ -117,13 +189,23 @@
           flex-direction: row;
           margin-left: auto;
           height: 72px;
+          color: var(--app-foreground-color);
+          white-space: nowrap;
+
+          &.disabled {
+            color: var(--button-disabled-color);
+          }
 
           button {
             width: 74px;
             height: 100%;
+            color: var(--card-text-color);
             background-color: var(--card-background-color);
-            color: var(--app-foreground-color);
             transition: color, background-color 0.2s ease-in-out;
+
+            &.disabled {
+              color: var(--button-disabled-color);
+            }
 
             .prev {
               border-radius: 8px 0 0 8px;
@@ -144,16 +226,49 @@
           color: var(--night-fore-color);
           transition: color, background-color 0.2s ease-in-out;
 
-          &.active {
+          &.active:not(.disabled) {
             background-color: var(--night-active-back-color);
             color: var(--night-active-fore-color);
             animation: breath infinite 4s;
+          }
+
+          &.disabled {
+            background-color: var(--night-back-color);
+            color: var(--button-disabled-color);
           }
 
           .mat-icon {
             font-size: 24px;
             height: 24px;
             width: 24px;
+          }
+        }
+
+        &.aux-button {
+          width: 122px;
+
+          button.aux {
+            border-radius: 8px;
+            width: 100%;
+            height: 36px;
+            background-color: var(--night-back-color);
+            color: var(--night-fore-color);
+            transition: color, background-color 0.2s ease-in-out;
+
+            &.active:not(.disabled) {
+              color: var(--power-ON);
+            }
+
+            &.disabled {
+              background-color: var(--night-back-color);
+              color: var(--button-disabled-color);
+            }
+
+            .mat-icon {
+              font-size: 24px;
+              height: 24px;
+              width: 24px;
+            }
           }
         }
 

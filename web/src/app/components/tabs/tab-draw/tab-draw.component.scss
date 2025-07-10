@@ -204,20 +204,10 @@
             display: flex;
             justify-content: flex-start;
             align-items: center;
-            margin: -1px 0 0 4px;
+            margin: 1px 0 0 4px;
             width: 120px;
             white-space: nowrap;
             text-overflow: ellipsis;
-          }
-
-          mat-radio-group {
-            display: flex;
-            flex-direction: row;
-            flex: 1;
-
-            mat-radio-button {
-              width: 65px;
-            }
           }
 
           &.radio-buttons {
@@ -240,7 +230,7 @@
               padding-left: calc(var(--label-width) + 4px);
               text-align: start;
               padding-right: 6px;
-              font-size: 14px;
+              font-size: 13px;
             }
 
             .mat-mdc-form-field-hint {
@@ -252,14 +242,13 @@
               position: relative;
               padding-left: calc(var(--label-width) + 4px);
 
-              .mat-mdc-select-value {
-                font-size: 14px;
-                margin: -5px 0 0 0;
+              .mat-mdc-select-arrow-wrapper {
+                transform: none !important;
               }
 
-              .mat-mdc-select-arrow-wrapper {
-                position: relative;
-                top: 6px;
+              .mat-mdc-select-value {
+                font-size: 13px;
+                margin: 2px 0 0 0;
               }
             }
           }

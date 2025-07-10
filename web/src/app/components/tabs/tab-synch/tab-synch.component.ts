@@ -1,5 +1,5 @@
-import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
@@ -7,16 +7,32 @@ import {WebsocketService} from '../../../services/websocket/websocket.service';
 import {distinctUntilChanged} from "rxjs/operators";
 import {AppErrorStateMatcher, isNullOrUndefinedOrEmpty, rangeValidator} from "../../../services/helper";
 import {ComboBoxItem} from "../../../models/combo-box.model";
-import {FormControl, Validators} from "@angular/forms";
-import {MatSelect} from "@angular/material/select";
+import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { MatSelect, MatSelectModule } from "@angular/material/select";
+import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
+import { MatOptionModule } from '@angular/material/core';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import {Base} from "../../base.class";
 
 @Component({
-  selector: 'app-tab-synch',
-  templateUrl: './tab-synch.component.html',
-  styleUrls: ['./tab-synch.component.scss'],
+    selector: 'app-tab-synch',
+    templateUrl: './tab-synch.component.html',
+    styleUrls: ['./tab-synch.component.scss'],
+    standalone: true,
+    imports: [
+        MatFormFieldModule,
+        MatSelectModule,
+        FormsModule,
+        DisableControlDirective,
+        MatOptionModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        MatButtonModule,
+    ],
 })
-export class TabSynchComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabSynchComponent extends Base implements OnInit, OnDestroy {
 
   @ViewChild('e_mode', {static: true}) mode!: MatSelect;
 
@@ -71,6 +87,7 @@ export class TabSynchComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
   }
 
   ngOnInit() {
@@ -169,7 +186,7 @@ export class TabSynchComponent implements OnInit, OnDestroy {
   }
 
   isDisabled(): boolean {
-    return !this.managementService.state.power || !this.socketService.isConnected;
+    return !this.socketService.isConnected;
   }
 
   isDisabled2(): boolean {
@@ -177,8 +194,10 @@ export class TabSynchComponent implements OnInit, OnDestroy {
     return this.mode.value === 1 && this.managementService.state.width * this.managementService.state.height > 2040;
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  isValid(): boolean {
+    const isSlave = this.e131_mode === 2 && this.e131_type === 1;
+
+    return !isSlave ||  (this.masterXFormControl.valid && this.masterYFormControl.valid && this.localXFormControl.valid && this.localYFormControl.valid && this.localWFormControl.valid && this.localHFormControl.valid);
   }
+
 }

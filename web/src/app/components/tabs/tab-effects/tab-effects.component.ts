@@ -1,7 +1,7 @@
-import {DOCUMENT} from '@angular/common';
+import { DOCUMENT, NgClass } from '@angular/common';
 import {Component, Inject, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {MatSlideToggleChange} from '@angular/material/slide-toggle';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
+import {debounceTime, takeUntil} from 'rxjs';
 import {ActionModel, ActionType} from '../../../models/action.model';
 import {CommonService, MessageType} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
@@ -9,16 +9,46 @@ import {ManagementService} from '../../../services/management/management.service
 import {WebsocketService} from '../../../services/websocket/websocket.service';
 import {distinctUntilChanged} from "rxjs/operators";
 import {AppErrorStateMatcher, isNullOrUndefined, isNullOrUndefinedOrEmpty, rangeValidator} from "../../../services/helper";
-import {FormControl, Validators} from "@angular/forms";
-import {CdkDragDrop, moveItemInArray, transferArrayItem} from "@angular/cdk/drag-drop";
-import {IEffectModel} from "../../../models/effect.model";
+import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { CdkDragDrop, moveItemInArray, transferArrayItem, CdkDropListGroup, CdkDropList, CdkDrag } from "@angular/cdk/drag-drop";
+import { EffectComponent } from '../../effect/effect.component';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatButtonModule } from '@angular/material/button';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { BrightnessSliderComponent } from '../../brightness-slider/brightness-slider.component';
+import { ActionComponent } from '../../action/action.component';
+import {Base} from "../../base.class";
 
 @Component({
-  selector: 'app-tab-effects',
-  templateUrl: './tab-effects.component.html',
-  styleUrls: ['./tab-effects.component.scss'],
+    selector: 'app-tab-effects',
+    templateUrl: './tab-effects.component.html',
+    styleUrls: ['./tab-effects.component.scss'],
+    standalone: true,
+    imports: [
+        ActionComponent,
+        BrightnessSliderComponent,
+        MatFormFieldModule,
+        MatInputModule,
+        FormsModule,
+        ReactiveFormsModule,
+        DisableControlDirective,
+        MatButtonModule,
+        MatSlideToggleModule,
+        MatTooltipModule,
+        NgClass,
+        MatIconModule,
+        MatTabsModule,
+        EffectComponent,
+        CdkDropListGroup,
+        CdkDropList,
+        CdkDrag,
+    ],
 })
-export class TabEffectsComponent implements OnInit, OnDestroy {
+export class TabEffectsComponent extends Base implements OnInit, OnDestroy {
 
   // @ts-ignore
   @ViewChild('input2') input2: ElementRef;
@@ -36,7 +66,13 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
   autoModeTimeFormControl = new FormControl(0, [Validators.required, rangeValidator(0, 255)]);
   matcher = new AppErrorStateMatcher();
 
-  private destroy$ = new Subject();
+  isAuxActive: boolean = false;
+  isAuxSupported: boolean = false;
+
+  private e131_mode: number = -1;
+  private e131_type: number = -1;
+  private e131_group: number = -1;
+  private e131_streaming: boolean | undefined = undefined;
 
   constructor(
     @Inject(DOCUMENT) private document: Document,
@@ -45,6 +81,8 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
+
     function checkRange(val: any, min: number, max: number): boolean {
       let res = false;
       if (typeof val === 'number') {
@@ -63,13 +101,13 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     this.bright_5 = new ActionModel({
       mode: ActionType.BRIGHT,
       icon: 'bright_5',
-      active: (value: number) => checkRange(value, 0, 13),
-      set: '$4 0 13;',
+      active: (value: number) => checkRange(value, 0, 16),   // Минимальная яркость ночных часов при которой диоды еще горят - 16;
+      set: '$4 0 16;',                                       // Надо чтобы при этом в UI была активной девая кнопка яркости на панели управления
     });
     this.bright_25 = new ActionModel({
       mode: ActionType.BRIGHT,
       icon: 'bright_25',
-      active: (value: number) => checkRange(value, 14, 64),
+      active: (value: number) => checkRange(value, 17, 64),
       set: '$4 0 64;',
     });
     this.bright_50 = new ActionModel({
@@ -98,7 +136,7 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в главном экране
-          const request = 'PS|BR|DM|RM|FV|PD|IT|EF|EN';
+          const request = 'E1|E2|E3|E4|PS|BR|DM|RM|FV|PD|IT|EF|EN|FK|PZ2';
           this.managementService.getKeys(request);
         }
       });
@@ -108,6 +146,24 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
       .subscribe((key: string) => {
         if (!isNullOrUndefinedOrEmpty(key)) {
           switch (key) {
+            case 'E1':
+              this.e131_mode = this.managementService.state.e131_mode;
+              break;
+            case 'E2':
+              this.e131_type = this.managementService.state.e131_type;
+              break;
+            case 'E3':
+              this.e131_group = this.managementService.state.e131_group;
+              break;
+            case 'E4':
+                this.e131_streaming = this.managementService.state.e131_streaming === true;
+                break;
+            case 'FK':
+              this.isAuxActive = this.managementService.state.isAuxActive;
+              break;
+            case 'PZ2':
+              this.isAuxSupported = this.managementService.state.supportAuxPower;
+              break;
             case 'EF':
               this.managementService.effects.forEach((effect) => {
                 effect.active = effect.id == this.managementService.state.effect;
@@ -128,9 +184,18 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
   }
 
   isDisabled(): boolean {
-    return (
-      !this.managementService.state.power || !this.socketService.isConnected
-    );
+    // Выключено иди нет подключения
+    return !this.managementService.state.power || !this.socketService.isConnected;
+  }
+
+  isAuxDisabled(): boolean {
+    // Выключено иди нет подключения
+    return !this.socketService.isConnected;
+  }
+
+  isDisabledByIncomeStream(): boolean {
+    // Выключено иди нет подключения или режим - слушатель и идет вещание
+    return this.isDisabled() || (this.e131_mode === 2 && this.e131_streaming === true);
   }
 
   showEffectInformation(duration?: number) {
@@ -174,22 +239,43 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     if (isNullOrUndefined(this.input2) || Number(this.input2.nativeElement.value) === 0) {
       return this.L.$('возврат в авторежим выключен');
     }
-    return `${this.L.$('включать авторежим через')} ${this.input2.nativeElement.value} ${this.L.$('минут')} ${this.L.$('[0 - выключено]')}`;
+    return `${this.L.$('в авторежим через')} ${this.input2.nativeElement.value} ${this.L.$('минут')} ${this.L.$('[ 0-выкл ]')}`;
   }
 
   getNightClockTooltip() {
-    return this.managementService.state.isNightClockRunnung()  // MC_NIGHT_CLOCK
-      ? this.L.$('Выключить ночные часы')
-      : this.L.$('Включить ночные часы');
+    return this.e131_mode === 2 && this.e131_streaming === true
+    ? this.L.$('В режиме приема вещания в группе недоступно')
+    : (this.managementService.state.isNightClockRunnung()  // MC_NIGHT_CLOCK
+        ? this.L.$('Выключить ночные часы')
+        : this.L.$('Включить ночные часы'));
+  }
+
+  getAuxTooltip() {
+    return this.isAuxActive ? this.L.$('ВЫКЛ. дополнительную линию питания') : this.L.$('ВКЛ. дополнительную линию питания');
+  }
+
+  getDisabledTooltip() {
+    return this.e131_mode === 2 && this.e131_streaming === true
+      ? this.L.$('В режиме приема вещания в группе недоступно')
+      : "";
   }
 
   toggleNightClock() {
-    if (this.managementService.state.isNightClockRunnung())    // MC_NIGHT_CLOC
-      // $3 0; - включить на устройстве демо-режим
-      this.socketService.sendText('$3 0;');
+    if (this.managementService.state.isNightClockRunnung())    // MC_NIGHT_CLOCK
+      // $14 6;- выключить на устройстве ночные часы
+      this.socketService.sendText('$14 6;');
     else
-      // $14 8; - Включить ночные часы;
-      this.socketService.sendText('$14 8;');
+      // $14 3; - Включить ночные часы;
+      this.socketService.sendText('$14 3;');
+  }
+
+  toggleAuxLine() {
+    if (this.isAuxActive)
+      // $23 19 0; - выключить питание доп. линии управления
+      this.socketService.sendText('$23 19 0;');
+    else
+      // $23 19 1; - включить питание доп. линии управления
+      this.socketService.sendText('$23 19 1;');
   }
 
   drop(event: CdkDragDrop<number[]>) {
@@ -217,9 +303,62 @@ export class TabEffectsComponent implements OnInit, OnDestroy {
     this.managementService.saveCardsUsage();
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  getSyncType(): string {
+    return this.managementService.state.e131_mode == 1
+      ? 'MASTER'
+      : this.managementService.state.e131_mode == 2
+        ? 'SLAVE'
+        : '';
+  }
+
+  getSyncTypeTooltip(): string {
+    return this.managementService.state.e131_mode == 1
+      ? this.L.$('MASTER, группа ') + this.managementService.state.e131_group
+      : this.managementService.state.e131_mode == 2
+        ? this.L.$('SLAVE, группа ') + this.managementService.state.e131_group
+        : '';
+  }
+
+  getSyncClass(): string {
+    switch (this.managementService.state.e131_mode) {
+      case 1:
+        return 'master ' + (this.managementService.state.power ? 'power-on' : 'power-off');
+      case 2:
+        return 'slave ' + (this.managementService.state.e131_streaming === true ? 'stream-on' : 'stream-off');
+      default:
+        return '';
+    }
+  }
+
+  getPowerButtonClass(): string {
+    let str = 'power-btn';
+    if (!this.managementService.state.power) {
+      str += this.managementService.state.e131_streaming === true &&  this.managementService.state.e131_mode == 2 ? ' power-on slave' : ' power-off';
+    } else {
+      str += ' power-on';
+      switch (this.managementService.state.e131_mode) {
+        case 1:
+          str += ' master';
+          break;
+        case 2:
+          str += this.managementService.state.e131_streaming === true ? ' slave' : ' standalone';
+          break;
+        default:
+          str += ' standalone';
+          break;
+      }
+    }
+    return str;
+  }
+
+  getBrightnessLabelClass(): string {
+    let str = 'brightness-label';
+    if (!this.managementService.state.power) {
+      str += ' power-off';
+    } else {
+      str += ' power-on';
+    }
+    return str;
   }
 
 }

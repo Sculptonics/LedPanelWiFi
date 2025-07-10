@@ -1,5 +1,5 @@
 import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
@@ -7,20 +7,41 @@ import {WebsocketService} from '../../../services/websocket/websocket.service';
 import {distinctUntilChanged} from "rxjs/operators";
 import {AppErrorStateMatcher, isNullOrUndefinedOrEmpty, rangeValidator} from "../../../services/helper";
 import {ComboBoxItem} from "../../../models/combo-box.model";
-import {FormControl, Validators} from "@angular/forms";
+import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import {PluggerComponent} from "../../plugger/plugger.component";
+import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatOptionModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { MatRadioModule } from '@angular/material/radio';
+import { NgStyle } from '@angular/common';
+import {Base} from "../../base.class";
 
 @Component({
-  selector: 'app-tab-matrix',
-  templateUrl: './tab-matrix.component.html',
-  styleUrls: ['./tab-matrix.component.scss'],
+    selector: 'app-tab-matrix',
+    templateUrl: './tab-matrix.component.html',
+    styleUrls: ['./tab-matrix.component.scss'],
+    standalone: true,
+    imports: [
+        NgStyle,
+        MatRadioModule,
+        FormsModule,
+        DisableControlDirective,
+        MatSelectModule,
+        MatOptionModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        PluggerComponent,
+        MatButtonModule,
+    ],
 })
-export class TabMatrixComponent implements OnInit, OnDestroy {
+export class TabMatrixComponent extends Base implements OnInit, OnDestroy {
 
   @ViewChild('matrixPlugger') private matrixPlugger!: PluggerComponent;
   @ViewChild('totalPlugger') private totalPlugger!: PluggerComponent;
-
-  private destroy$ = new Subject();
 
   index_files: ComboBoxItem[] = [];
   index_file: number = -1;
@@ -46,6 +67,7 @@ export class TabMatrixComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
   }
 
   ngOnInit() {
@@ -145,13 +167,20 @@ export class TabMatrixComponent implements OnInit, OnDestroy {
   }
 
   isDisabled(): boolean {
-    return (
-      !this.managementService.state.power || !this.socketService.isConnected
-    );
+    return !this.socketService.isConnected;
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  getMatrixSize(): string {
+    if (this.radio_idx == 0) {
+      return this.index_files.length == 0 ? '0 x 0' : `${this.index_files[this.index_file].displayText.replace('x', ' x ')}`;
+    }
+
+    const w = this.segWidthFormControl.value as number;
+    const h = this. segHeightFormControl.value as number;
+    const sw = this.tolWidthFormControl.value as number;
+    const sh = this.tolHeightFormControl.value as number;
+
+    return `${w * sw} x ${h * sh}`;
   }
+
 }

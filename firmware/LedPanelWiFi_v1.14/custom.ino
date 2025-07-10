@@ -1,40 +1,18 @@
 
 // ----------------------------------------------------
 
-uint8_t  lastOverlayX, lastOverlayY, lastOverlayW, lastOverlayH;
-uint32_t xxx = millis();
-
 void customRoutine(uint8_t aMode) {
-  doEffectWithOverlay(aMode); 
+  doEffectWithOverlay(aMode);
 }
 
 void doEffectWithOverlay(uint8_t aMode) {
-
+  
   bool clockReady = clockTimer.isReady();
   bool textReady = textTimer.isReady();
 
   bool effectReady = aMode == MC_IMAGE || effectTimer.isReady(); // "Анимация" использует собственные "таймеры" для отрисовки - отрисовка без задержек; Здесь таймер опрашивать нельзя - он после опроса сбросится. 
-                                                                 // А должен читаться в эффекте анимации, проверяя не пришло ли время отрисовать эффект фона  
-
-  if (!(effectReady || (clockReady && !showTextNow) || (textReady && (showTextNow || thisMode == MC_TEXT)))) {
-    // Вообще вывод изображения на матрицу подразумевался аосле того, как сделаны изменения в кадре - а это происходит либо на таймере эффекта, либо на таймере бегущей строки.
-    // Однако на ядре 3.1.2 по каким-то внутренним причинам вывод на матрицу часто пропускается в результате эффект или текст "дергается", т.к. предыдущий кабр был пропущен
-    // Поэтому если время смены кадра не пришло - все равно выводим содержимое на матрицу - так надежнее изображение будет выведено на матрицу и
-    // пропуски кадра будут незаметными, даже если они были. Однако чаще 5 мс тоже выводить не нужно - постоянный вывод приводит к мерцанию светодиодов
-    if (millis() - prevShowTimer > 5) {
-      FastLED.show();
-      prevShowTimer = millis();
-    }
-    return;
-  }
-
-  // В прошлой итерации часы / текст были наложены с оверлеем?
-  // Если да - восстановить пиксели эффекта сохраненные перед наложением часов / текста
-  if (overlayDelayed && thisMode != MC_DRAW && thisMode != MC_LOADIMAGE) {
-    overlayUnwrap();
-    overlayDelayed = false;
-  }  
-
+                                                                 //  А должен читаться в эффекте анимации, проверяя не пришло ли время отрисовать эффект фона    
+                                                                 
   // Проверить есть ли активное событие текста? 
   // Если нет - после проверки  momentTextIdx = -1 и momentIdx = -1
   // Если есть - momentTextIdx - индекс текста для вывода в зависимости от ДО или ПОСЛЕ события текущее время; momentIdx - активная позиция в массиве событий moments[] 
@@ -43,23 +21,28 @@ void doEffectWithOverlay(uint8_t aMode) {
     checkMomentText();
     if (momentTextIdx >= 0 && currentTextLineIdx != momentTextIdx) {
       // В момент смены стоки с ДО на ПОСЛЕ - строка ПОСЛЕ извлеченная из массива содержит признак отключенности - '-' в начале или "{-}" в любом месте
-      // Также строка может содержать другие макросы, которые нужно обработать processMacrosInText()
       // Если передать строку с макросом отключения - processMacrosInText() вернет любую другую строку вместо отключенной
       // Чтобы это не произошло - нужно удалить признак отключенности
       currentTextLineIdx = momentTextIdx;
-      String text = getTextByIndex(currentTextLineIdx);
+      macrosTextLineIdx = -1;
+      specialTextEffect = -1;
+
+      String text(getTextByIndex(currentTextLineIdx));
       if (text.length() > 0 && text[0] == '-') text = text.substring(1);
+      
       while (text.indexOf("{-}") >= 0) text.replace("{-}","");
-      currentText = processMacrosInText(text);      
+      currentText = text;
       ignoreTextOverlaySettingforEffect = textOverlayEnabled;
       loadingTextFlag = true;
     }
+    
   }
 
   // Оверлей нужен для всех эффектов, иначе при малой скорости эффекта и большой скорости часов поверх эффекта буквы-цифры "смазываются"
-  bool textOvEn  = ((textOverlayEnabled && (getEffectTextOverlayUsage(aMode))) || ignoreTextOverlaySettingforEffect) && !isTurnedOff && !isNightClock && thisMode < MAX_EFFECT;
-  bool clockOvEn = clockOverlayEnabled && getEffectClockOverlayUsage(aMode) && thisMode != MC_CLOCK && thisMode != MC_DRAW && thisMode != MC_LOADIMAGE;
+  bool textOvEn  = ((textOverlayEnabled && (getEffectTextOverlayUsage(aMode))) || ignoreTextOverlaySettingforEffect) && !isTurnedOff && (!isNightClock || (isNightClock && textIndecies.length() > 0)) && thisMode < MAX_EFFECT;
+  bool clockOvEn = clockOverlayEnabled && (getEffectClockOverlayUsage(aMode) || thisMode == MC_CLOCK) && thisMode != MC_DRAW && thisMode != MC_LOADIMAGE;
   bool needStopText = false;
+  
   String out;
 
   // Если команда отображения текущей строки передана из приложения или
@@ -70,13 +53,21 @@ void doEffectWithOverlay(uint8_t aMode) {
 
     // Обработать следующую строку для отображения, установить параметры;
     // Если нет строк к отображению - продолжать отображать оверлей часов
+    
     if (prepareNextText(currentText)) {
-      moment_active = momentTextIdx >= 0;
+      moment_active = momentTextIdx >= 0;      
       fullTextFlag = false;
       loadingTextFlag = false;
       showTextNow = true;                  // Флаг переключения в режим текста бегущей строки 
       textCurrentCount = 0;                // Сбросить счетчик количества раз, сколько строка показана на матрице;
       textStartTime = millis();            // Запомнить время начала отображения бегущей строки
+
+      if (moment_active) {
+        ignoreTextOverlaySettingforEffect = true;
+      } else {
+        pTextCount = 0;
+        macrosTextLineIdx = -1;
+      }
 
       #if (USE_E131 == 1)
         commandSetTextSpeed(textScrollSpeed);
@@ -87,6 +78,7 @@ void doEffectWithOverlay(uint8_t aMode) {
       doc.clear();
       doc["act"] = F("TEXT");
       doc["run"] = true;
+      
       if (textHasDateTime) {
         outText = processDateMacrosInText(currentText);         // Обработать строку, превратив макросы даты в отображаемые значения
         if (outText.length() == 0) {                            // Если дата еще не инициализирована - вернет другую строку, не требующую даты
@@ -95,31 +87,26 @@ void doEffectWithOverlay(uint8_t aMode) {
       } else {
         outText = currentText;
       }
+
       doc["text"] = outText;
       serializeJson(doc, out);    
+      doc.clear();
+      
       SendWeb(out, TOPIC_TXT);
 
       #if (USE_MP3 == 1)
-      if (runTextSound >= 0) {
-        if (isDfPlayerOk && noteSoundsCount > 0) {
-          dfPlayer.stop();                                     Delay(GUARD_DELAY);
-          dfPlayer.setVolume(constrain(maxAlarmVolume,1,30));  Delay(GUARD_DELAY);
-          dfPlayer.playFolderTrack(3, runTextSound);           Delay(GUARD_DELAY);
-        } else {
-          runTextSound = -1;
-          runTextSoundRepeat = false;
+        // Если воспроизводился звук указанный для строки - остановить его
+        if (playingTextSound >= 0 || runTextSound >= 0) {
+          dfPlayer.stop(); Delay(GUARD_DELAY);
         }
-      }        
+        runTextSound = -1;
+        playingTextSound = -1;
+        runTextSoundRepeat = false;
+        runTextSoundFirst = true;
+        runTextSoundTime = millis();
       #endif      
     }
-
-    // Если указано, что строка должна отображаться на фоне конкретного эффекта - его надо инициализировать    
-    if (specialTextEffect >= 0) {
-      saveEffectBeforeText = thisMode;   // сохранить текущий эффект
-      setTimersForMode(specialTextEffect);
-      // Если заказанный эффект не тот же, что сейчас воспроизводится или если эффект имеет вариант - выполнить инициализацию эффекта
-      loadingFlag = (specialTextEffect != saveEffectBeforeText) || (specialTextEffectParam >=0 && getParam2ForMode(specialTextEffect).charAt(0) != 'X');
-    }
+    
   } else
 
   // Если строка отображается, но флаг разрешения сняли - прекратить отображение
@@ -149,7 +136,7 @@ void doEffectWithOverlay(uint8_t aMode) {
     }
   }
 
-  // Нет активного события? но флаг что оно отображается стоит
+  // Нет активного события, но флаг что оно отображается стоит?
   if (moment_active && momentTextIdx < 0) {
     moment_active = false;
     needStopText = true;
@@ -176,9 +163,17 @@ void doEffectWithOverlay(uint8_t aMode) {
   if (needStopText || mandatoryStopText) {    
     showTextNow = false; 
     mandatoryStopText = false;
-    currentText = "";
+
+    ResetRunningTextFlags();
+    currentText.clear();
+
+    // Если макросом {#N} была определена слудующая строк и именно она отображалась - сбросить, т.к. действие завершено
+    if (currentTextLineIdx >= 0 && currentTextLineIdx == nextTextLineIdx) nextTextLineIdx = -1;
+    
     ignoreTextOverlaySettingforEffect = nextTextLineIdx >= 0;
     specialTextEffectParam = -1;
+    macrosTextLineIdx = -1;
+
     wifi_print_ip = false;
     wifi_print_ip_text = false;
     wifi_print_version = false;
@@ -191,7 +186,7 @@ void doEffectWithOverlay(uint8_t aMode) {
     if (saveEffectBeforeText >= 0 || useSpecialBackColor) {
       loadingFlag = specialTextEffect != saveEffectBeforeText || useSpecialBackColor;  // Восстановленный эффект надо будет перезагрузить, т.к. иначе эффекты с оверлеем будут использовать оставшийся от спецэффекта/спеццвета фон
       saveEffectBeforeText = -1;                                                       // Сбросить сохраненный / спецэффект
-      specialTextEffect = -1;      
+      specialTextEffect = -1;    
       useSpecialBackColor = false;
     }
 
@@ -199,24 +194,30 @@ void doEffectWithOverlay(uint8_t aMode) {
     // После остановки отображения текста на фоне эффекта, установить таймер текущего эффекта
     setTimersForMode(thisMode);
     
-    // Если к показы задана следующая строка - установить время показа предыдущей в 0, чтобы
+    // Если к показу задана следующая строка - установить время показа предыдущей в 0, чтобы
     // следующая строка начала показываться немедленно, иначе - запомнить время окончания показа строки,
     // от которого отсчитывается когда начинать следующий показ
     textLastTime = nextTextLineIdx >= 0 ? 0 : millis();
 
     #if (USE_MP3 == 1)
       // Если воспроизводился звук указанный для строки - остановить его
-      if (runTextSound >= 0) {
-        runTextSound = -1;
-        runTextSoundRepeat = false;
+      if (playingTextSound >= 0 || runTextSound >= 0) {
         dfPlayer.stop(); Delay(GUARD_DELAY);
       }
+      runTextSound = -1;
+      playingTextSound = -1;
+      runTextSoundRepeat = false;
+      runTextSoundFirst = true;
+      runTextSoundTime = 0;
     #endif
     
     doc.clear();
     doc["act"] = F("TEXT");
     doc["run"] = false;
+
     serializeJson(doc, out);    
+    doc.clear();
+    
     SendWeb(out, TOPIC_TXT);
 
     // Если показ завершен и к отображению задана следующая строка - не нужно рисовать эффекты и все прочее - иначе экран мелькает
@@ -226,174 +227,428 @@ void doEffectWithOverlay(uint8_t aMode) {
     }
   }
 
-  // Нужно сохранять оверлей эффекта до отрисовки часов или бегущей строки поверх эффекта?
-  bool needOverlay  = 
-       (aMode == MC_CLOCK) ||                                                         // Если включен режим "Часы" (ночные часы)
-       (aMode == MC_TEXT) ||                                                          // Если включен режим "Бегущая строка" (show IP address)       
-      (!showTextNow && clockOvEn) || 
-       (showTextNow && textOvEn);
-    
+  bool needShowClock = false;
+  bool needShowTemperature = false;
+  bool needShowCalendar = false;
+  bool needShowText = false;
+
+  // Что-то на экране изменилось и его требуется перерисовать?
+  bool needShowScreen = false;
+
+  // Если поошло время смены цикла отображения часво T1-T4 - сменить
+  if (millis() - showDateStateLastChange > ((clock_cycle_phase & 0x01) == 0 ? clock_cycle_T1 : clock_cycle_T2) * 1000L) {
+    showDateStateLastChange = millis();
+    if (++clock_cycle_phase > 3) clock_cycle_phase = 0;
+  }  
+
   if (effectReady) {
     if (showTextNow) {
+      
+      #if (USE_MP3 == 1)
+        if (runTextSound >= 0 && playingTextSound != runTextSound) {
+          if (isDfPlayerOk && noteSoundsCount > 0) {            
+            if (runTextSoundFirst && (millis() - runTextSoundTime > 100)) { 
+              playingTextSound = runTextSound;
+              runTextSoundFirst = false;
+              dfPlayer.setVolume(constrain(maxAlarmVolume,1,30));  Delay(GUARD_DELAY);
+              dfPlayer.playFolderTrack(3, runTextSound);           Delay(GUARD_DELAY);
+              runTextSoundTime = millis();
+            }
+          } else {
+            runTextSound = -1;
+            playingTextSound = -1;
+            runTextSoundFirst = true;
+            runTextSoundRepeat = false;
+            runTextSoundTime = millis();
+          }
+        }
+      #endif      
+
       // Если указан другой эффект, поверх которого бежит строка - отобразить его
-      if (specialTextEffect >= 0) {
-        processEffect(specialTextEffect);
-      } else if (useSpecialBackColor) {
-        // Задана отрисовка строки поверх однотонной заливки указанным цветом
-        fillAll(specialBackColor);
-        overlayDelayed = false;
-      } else {
-        // Отобразить текущий эффект, поверх которого будет нарисована строка
-        processEffect(aMode);
+      if (!isNightClock) {
+        if (specialTextEffect >= 0) {
+          if (currentTimerEffectId != specialTextEffect) {
+            // Если заказанный эффект не тот же, что сейчас воспроизводится или если эффект имеет вариант - выполнить инициализацию эффекта
+            setTimersForMode(specialTextEffect);
+            loadingFlag = (specialTextEffect != saveEffectBeforeText) || (specialTextEffectParam >= 0 && getParam2ForMode(specialTextEffect).charAt(0) != 'X');
+          }        
+          processEffect(specialTextEffect);
+        } else if (useSpecialBackColor) {
+          fillAll(specialBackColor);
+        } else {
+          // Отобразить текущий эффект, поверх которого будет нарисована строка
+          processEffect(aMode);
+        }
       }
     } else {
       // Иначе отрисовать текущий эффект
       processEffect(aMode);
     }
+    needShowScreen = true;
   }
 
   // Смещение бегущей строки
   if (textReady && (showTextNow || aMode == MC_TEXT)) {
     // Сдвинуть позицию отображения бегущей строки
     shiftTextPosition();
+    needShowScreen = true;
   }
 
-  // Смещение движущихся часов 
-  if (clockReady) {    
-    CLOCK_MOVE_CNT--;
-    if (CLOCK_MOVE_CNT <= 0) {
-      CLOCK_MOVE_CNT = CLOCK_MOVE_DIVIDER;
-      if (showDateInClock && showDateState && !showWeatherState) {
-        CALENDAR_XC--;
-        if (CALENDAR_XC < -CALENDAR_W) {
-         if (vDEVICE_TYPE == 0 && CLOCK_W < pWIDTH)
-           CALENDAR_XC = pWIDTH - CALENDAR_W - 1 ;
-         else
-           CALENDAR_XC = pWIDTH - 1;         
-        }     
-        CLOCK_XC = CALENDAR_XC + (CLOCK_W - CALENDAR_W) / 2;
-      } else {
+  // Если по условиям размера матрицы доступно отображение часов/температуры/календаря -
+  // рассчитать позицию вывода и значения для вывода
+  if (clockOvEn && (allowVertical || allowHorizontal)) {
+
+    // Смещение движущихся часов - движется центр отображения, для часов - позиция по разделительным точкам ЧЧ:MM,
+    // для календаря - точка разделения ДД.ММ
+    if (clockReady && debug_hours < 0) {
+      CLOCK_MOVE_CNT--;
+      if (CLOCK_MOVE_CNT <= 0) {
         CLOCK_XC--;
-        if (getClockX(CLOCK_XC + CLOCK_LX) < 0) {
-         if (vDEVICE_TYPE == 0 && CLOCK_W < pWIDTH)
-           CLOCK_XC = pWIDTH - CLOCK_W - 1;
-         else
-           CLOCK_XC = pWIDTH - CLOCK_FX - 1;
-        }     
-        CALENDAR_XC = CLOCK_XC + (CALENDAR_W - CLOCK_W) / 2;
-      }
-    }
-  }
+        CLOCK_MOVE_CNT = CLOCK_MOVE_DIVIDER;
 
-  // Пришло время отобразить дату (календарь) в малых часах или температуру / календарь в больших?
-  checkCalendarState();
-  
-  // Если время инициализировали и пришло время его показать - нарисовать часы поверх эффекта
-  if (init_time && (((clockOvEn || aMode == MC_CLOCK) && !showTextNow && aMode != MC_TEXT && thisMode != MC_DRAW && thisMode != MC_LOADIMAGE))) {    
-    overlayDelayed = needOverlay;
-    setOverlayColors();
-    if (needOverlay) {
-      // Размер календаря по высоте имеет максимальный оверлей, в который входит и бегущая строка и часы с температурой в две строки и сам календарь
-      y_overlay_low  = CALENDAR_Y - 1;
-      y_overlay_high = y_overlay_low + CALENDAR_H;
-      while (y_overlay_low < 0) y_overlay_low++;
-      while (y_overlay_high >= pHEIGHT) y_overlay_high--;
-      overlayWrap();
-    }      
+        int16_t minX = validClockX ? lastClockX : (validCalendarX ? lastCalendarX : (validTemperatureX ? lastTemperatureX : -9999));
+        int16_t maxX = validClockX ? lastClockX + lastClockW : (validCalendarX ? lastCalendarX + lastCalendarW : (validTemperatureX ? lastTemperatureX + lastTemperatureW : -9999));
 
-    // Время отрисовки календаря или температуры
-    bool cal_or_temp_processed = false;
-    // В больших часах календарь и температура показываются в той же позиции, что и часы и совпадают по формату - ЧЧ:MM и ДД.MM - одинаковый размер
-    // В малых вертикальных часах - нет.
-    int8_t XC = CLOCK_ORIENT == 1 && c_size == 1 ? CALENDAR_XC : CLOCK_XC;
-    if (showDateState && (showDateInClock || (!allow_two_row && (init_weather && showWeatherInClock && showWeatherState)))) {
-      if (showDateInClock && showDateState && !showWeatherState) {
-        // Календарь
-        drawCalendar(aday, amnth, ayear, dotFlag, XC, CALENDAR_Y);
-        cal_or_temp_processed = true;
-      } else {
-        // Температура, когда чередуется с часами - только при горизонтальной ориентации часов и если она по высоте не входит в отображение ВМЕСТЕ с часами
-        #if (USE_WEATHER == 1)       
-          if (init_weather && showWeatherInClock && showDateState && showWeatherState && CLOCK_ORIENT == 0 && !allow_two_row) {
-            CLOCK_WY = CLOCK_Y;
-            drawTemperature(CLOCK_XC);
-            cal_or_temp_processed = true;
-          } else {   
-            // Если показ календаря в часах включен - показать календарь, иначе - вместо календаря снова показать температуру, если она включена
-            if (showDateInClock || !init_weather) {
-              drawCalendar(aday, amnth, ayear, dotFlag, XC, CALENDAR_Y);  
-              cal_or_temp_processed = true;
-            } else if (showWeatherInClock && !allow_two_row) {
-              CLOCK_WY = CLOCK_Y;
-              drawTemperature(CLOCK_XC);  
-              cal_or_temp_processed = true;
+        if (validClockX) {
+          minX = min(minX, (int16_t)lastClockX);
+          maxX = max(maxX, (int16_t)(lastClockX + lastClockW));
+        }
+        if (validCalendarX) {
+          minX = min(minX, (int16_t)lastCalendarX);
+          maxX = max(maxX, (int16_t)(lastCalendarX + lastCalendarW));
+        }
+        #if (USE_WEATHER == 1)
+        if (validTemperatureX) {
+          minX = min(minX, (int16_t)lastTemperatureX);
+          maxX = max(maxX, (int16_t)(lastTemperatureX + lastTemperatureW));
+        }
+        #endif
+
+        int16_t width = 0;
+        if (minX != -9999) {
+          width = maxX - minX + 1;
+          if (CLOCK_XC < 0) {
+            if (vDEVICE_TYPE == 0) {
+              CLOCK_XC = pWIDTH - 1;
+            } else {
+              if (CLOCK_XC + width / 2 < 0) {
+                CLOCK_XC = pWIDTH + width / 2 + 1;
+              }
             }
           }
-        #else
-           drawCalendar(aday, amnth, ayear, dotFlag, XC, CALENDAR_Y);
-           cal_or_temp_processed = true;
-        #endif
-      }
-    } 
-
-    // Если календарь или температура по условиям не могут быть нарисованы - рисовать часы
-    if (!cal_or_temp_processed) {
-
-      uint8_t CLK_Y = CLOCK_Y;
-
-      #if (USE_WEATHER == 1)       
-        // Если температура отрисовывается вместе с часами - позиция рисования такая же как у двухстрочного календаря
-        bool draw_temp = init_weather && showWeatherInClock && allow_two_row && CLOCK_ORIENT == 0;
-        if (draw_temp) {
-          CLK_Y = CALENDAR_Y + (c_size == 1 ? 6 : 9);
-          while (CLK_Y + (c_size == 1 ? 5 : 7) > pHEIGHT) CLK_Y--;
         }
+      }
+    }
+
+    // Смещение движущихся часов - движется центр отображения, для часов - позиция по разделительным точкам ЧЧ:MM,
+    // для календаря - точка разделения ДД.ММ
+    if (debug_hours >= 0 && debug_move != 0) {    
+      CLOCK_XC += debug_move;
+      // Взять максимальную ширину из блока часов или календаря
+      // Если правый край часов/календаря ушел за левый край матрицы - считать снова с правого края матрицы
+      // Если левый край часов/календаря ушел за правый край матрицы - считать снова с нуля
+      uint8_t width = max(clockW, calendarW);    
+      #if (USE_WEATHER ==1)
+      if (useWeather > 0 && init_weather && weather_ok) width = max(width, temperatureW);    
+      #endif
+      if (CLOCK_XC < 0) {
+        if (vDEVICE_TYPE == 0) {
+          CLOCK_XC = pWIDTH - 1;
+        } else {
+          if (CLOCK_XC + width / 2 < 0) {
+            CLOCK_XC = pWIDTH + width / 2 - 1;
+          }
+        }
+      } else          
+      if (CLOCK_XC >= pWIDTH) {
+        if (vDEVICE_TYPE == 0) {
+          CLOCK_XC = 0;
+        } else {
+          if (CLOCK_XC - width / 2 >= pWIDTH) {
+            CLOCK_XC = -(width / 2);
+          }
+        }
+      }           
+      debug_move = 0;
+    }
+
+    // Нарисовать отладочный крест - вертикаль - текущая позиция центра смещения, горизонталь - середина эурана
+    if (debug_cross && debug_hours >= 0 && debug_mins >= 0) {
+      uint8_t Y = pHEIGHT / 2;
+      for (int8_t i = 0; i < pWIDTH; i++) {
+        drawPixelXY(i, Y, CRGB::Yellow);      
+      }
+      for (int8_t i = 0; i < pHEIGHT; i++) {
+        drawPixelXY(getClockX(CLOCK_XC), i, CRGB::Yellow);      
+      }    
+    }
+    
+    // Если время инициализировали и пришло время его показать - нарисовать часы поверх эффекта
+    if (init_time && ((clockOvEn || aMode == MC_CLOCK) && thisMode != MC_DRAW && thisMode != MC_LOADIMAGE)) {    
+
+      // Рассчитать нужно ли показывать часы / календарь / температуру в текущей фазе цикла отображения 
+      // clock_cycle_F1 - Флаги отображения часов/календаря в циклах T1-T4     Если бит =1 для текущей фазы цикла - отображать, если 0 - не отображать.
+      // clock_cycle_F2 - Флаги отображения температуры в циклах T1-T4
+
+      needShowClock       = ((clock_cycle_F1 & 0x0F) & (0x01 << clock_cycle_phase)) != 0;
+      needShowCalendar    = (((clock_cycle_F1 & 0xF0) >> 4) & (0x01 << clock_cycle_phase)) != 0;
+      needShowTemperature = ((clock_cycle_F2 & 0x0F) & (0x01 << clock_cycle_phase)) != 0;
+
+      #if (USE_WEATHER == 1)
+      if (needShowTemperature) needShowTemperature = useWeather > 0 && init_weather && weather_ok;
       #endif
       
-      drawClock(hrs, mins, dotFlag, CLOCK_XC, CLK_Y);
+      // Если сейчас отображается бегущая строка - проверить - должны ли часы / календарь / температура отображаться во время бегущей строки
+      // hide_on_text_running - флаги: скрывать при бегущей строке b0 - часы  b1 - календарь  b2 - температуру
+      if (showTextNow) {
+        if (needShowClock) needShowClock = (hide_on_text_running & 0x01) == 0;                 // Если бит в hide_on_text_running установлен - маскирование даст не 0 - значит скрывать 
+        if (needShowCalendar) needShowCalendar = (hide_on_text_running & 0x02) == 0;
+        if (needShowTemperature) needShowTemperature = (hide_on_text_running & 0x04) == 0;
+      }
 
-      #if (USE_WEATHER == 1)       
-        if (draw_temp) {
-          CLOCK_WY = CALENDAR_Y - 1;
-          while (CLOCK_WY < 0) CLOCK_WY++;
-          drawTemperature(CLOCK_XC);
-        }
+      // Контрастные цвета часов для отображения поверх эффекта
+      setOverlayColors();
+
+      // Вычислить позиции блоков Часов, Температуры, Календаря, размеры блока под оверлей - все относительно текущего центра экрана,
+      // который боже быть движущимся, если включена прокрутка часов - CLOCK_XC
+
+      if (needShowClock) calcClockPosition();
+      if (needShowCalendar) calcCalendarPosition();
+      #if (USE_WEATHER == 1)
+      if (needShowTemperature) calcTemperaturePosition();
       #endif
     }
   }
-  
-  if ((showTextNow || aMode == MC_TEXT) && !isNightClock) {   // MC_CLOCK - ночные/дневные часы; MC_TEXT - показ IP адреса - всё на черном фоне
-    // Нарисовать оверлеем текст бегущей строки
-    // Нарисовать текст в текущей позиции
-    overlayDelayed = needOverlay;
-    if (needOverlay) {
-      y_overlay_low  = getTextY() - 2;                      // Нижняя строка вывода строки текста -2 строки на подстрочные диакритические символы
-      y_overlay_high = y_overlay_low + LET_HEIGHT + 4;      // Высота букв +3 символа на диакритические надстрочные символы
-      if (y_overlay_low < 0) y_overlay_low = 0;
-      if (y_overlay_high >= pHEIGHT) y_overlay_high = pHEIGHT - 1;
-      overlayWrap();
-    }
-    runningText();
+
+  needShowText = (showTextNow && textOvEn) || (aMode == MC_TEXT);
+  needShowScreen |= (needShowClock || needShowCalendar || needShowTemperature);
+
+  // Если нужно выводить текст бегущей строки - рассчитать его позицию относительно текста экрана.
+  // Прямоугольник во всю ширину экрана, высота прямоугольника - высота буквы шрифта.
+  // При расчете учитывается заданное смещение относительно горизонтального центра экрана - textOffsetY
+  if (needShowText) {   
+    calcTextRectangle();                                 // Вычислить позицию и размеры блока под оверлей бегущей строки
   }
 
-  FastLEDshow();
+  if (needShowScreen) {
+
+    // Есть следующие режима отображения часов / температуры / календаря
+    // 1. Традиционный - часы, температура и календарь отображаюься единым блоком:
+    //    - Горизонтальные часы
+    //      - Часы в верхней строке при двухстрочном режиме, правый край температуры выровнен справым краем часов 
+    //      - Температура в нижней строке  при двухстрочном режиме или за часами справа при однострочном режиме, с учетом настроенного размещения "под часами" / "за часами"
+    //    - Вертикалльные часы (если лдоступны две строки)
+    //       - Часы в двух строках - часы вверху, минуты внизу
+    //    - Nемпература - по центру области часов, поверх часов если включена. Для правильного отображения фазы показа часво и температуры не должны совпадать
+    //    - Календарь отображается попеременно с блоком часов / температуры в две строки как в горизонтальном так и в вертикальном режиме часов
+    //    - Если часы вертикальные - часы, температура и календарь отображаются попеременно - настраивается в фазах отображения часов / календаря / температуры
+    //      Если ширина экрана не позволяет (температура шире) - выводятся только вертикальные часы и ЧЧ/MM и календарь ДД/MM попеременно
+    //    Допускается смещение блока часов относительно центра экрана - в настройках, календарь и температура отображаются с привязкой к позиции часов и их смещением
+
+    bool isClockPlacementCompleted = false;
+
+    //  флаги b7b6b5b4b3b2b1b0 - b1b0 - отображ календаря 00 - в позиции часов, 11 - произвольно; 01 и 10 - зарезервировано
+    //                           b3b2 - отображение температуры 00 - под часами, 01 - справа от часов; 10 - зарезервировано; 11 - произвольно
+
+    // Как отображать температуру? 0 - под часами 1 - справа от часов 3 - произвольно
+    uint8_t cald_place = clock_show_variant & 0x03;
+
+    #if (USE_WEATHER == 1)
+    uint8_t temp_place = (clock_show_variant >> 2) & 0x03;
+
+    if (needShowTemperature && temp_place != 3) {
+      // Если часы вертикальные - они не могут отображаться вместе с температурой - часы отключить
+      if (needShowClock && CLOCK_ORIENT == 1) needShowClock = false;
+      if (needShowClock) {        
+        // Если часы отображаются - температуру разместить под часами (сдвинув их наверх) или за часами, сдвинув их влево
+        // так, чтобы пересечение областей часов и температуры были ...        
+        if (temp_place == 0) {
+
+          // Температура одновременно с часами, температура ПОД ЧАСАМИ
+          // На данный момент и часы и температура рассчитаны по центру экрана
+          // 1. Сдвинуть часы на половину высоты температуры вверх, сдвинуть температуру на половину высоты температуры вниз
+          // 2. Если реальная ширина часов больше ширины температуры - температура сдвигается враво для выраснивания по правому краю часов
+          //    Если реальная ширина часов меньше ширины температуры - часы сдвигаются враво для выраснивания по правому краю температуры
+          // Высота температуры 5 или 7 в зависимости от размера часов
+          int8_t shiftY = (temperatureH / 2) + 1;
+          int8_t shiftXc = 0;
+          int8_t shiftXt = 0;
+          if (clockW > temperatureW) {
+             shiftXt = (clockW - temperatureW) / 2;             
+          } else {
+             shiftXc = (temperatureW - clockW) / 2;
+          }
+          shiftClockPosition(clockOffsetX + shiftXc, clockOffsetY + shiftY);       CLOCK_X += (clockOffsetX + shiftXc);
+          shiftTemperaturePosition(clockOffsetX + shiftXt, clockOffsetY - shiftY); TEMP_X  += (clockOffsetX + shiftXt);
+          // Иногда при некоторых сочетаниях значений часов и температуры - температура оказывается не дотянута до правого края часов
+          // Снли позиция правого края часов и температуры не совпадают - сдвинуть часы еще на позицию вправо
+          while (clockX + clockW > temperatureX + temperatureW) shiftTemperaturePosition(1, 0);
+          while (clockX + clockW < temperatureX + temperatureW) shiftClockPosition(1, 0);
+
+        } else {
+
+          // Температура одновременно с часами, температура СПРАВА ОТ ЧАСОВ
+          // Изначально и часы и температура находятся по центру матрицы.
+          // Нужно разнести их так, чтобы левый край температуры через 2 столбца был присоединен к правому краю часов
+          // Затем объединенный прямоугольник центрировать относительно текущей позиции CLOCK_XC, затем - сдвинуть по clockOffsetX и clockOffsetY          
+
+          // Размеры нового объединенного прямоугольника часов и погоды 
+          int8_t newW = clockW + temperatureW + 2;
+          int8_t shiftClockX = (newW - clockW) / 2;
+          int8_t newClockX = clockX - shiftClockX;
+          int8_t newTempX = newClockX + clockW + 2;
+          int8_t shiftTempX = newTempX - temperatureX;
+      
+          shiftClockPosition(clockOffsetX - shiftClockX, clockOffsetY);         CLOCK_X += (clockOffsetX - shiftClockX);
+          shiftTemperaturePosition(clockOffsetX + shiftTempX, clockOffsetY);    TEMP_X  += (clockOffsetX + shiftTempX);
+
+        }
+
+      } else {
+
+        // Если температура отображается, а часы нет - отобразить температуру по центру области часов.
+        shiftTemperaturePosition(clockOffsetX, clockOffsetY);                       TEMP_X  += clockOffsetX;
+
+      }
+   
+      isClockPlacementCompleted = true;
+
+      // Если в данном режиме отображается температура - и для календаря указано "на месте часов" - календарь не может отображаться - место занято.
+      // Для правильной непротиворечивой последовательности нужн пойти в настройки цикла и там все непротиворечиво настроить
+      if (needShowCalendar && cald_place != 3) needShowCalendar = false;
+    }
+    #endif
+
+    // Если задано смещение часов по оси X,Y  - сдвинуть вычисленные позиции отображения
+    if (needShowClock && !isClockPlacementCompleted) {
+      shiftClockPosition(clockOffsetX, clockOffsetY);                               CLOCK_X += clockOffsetX;
+      isClockPlacementCompleted = true;
+    }
+
+    if (needShowCalendar && cald_place != 3) {
+      // Для автоматического режима, когда календарь отображается на месте часов не может быть одновременного отображения часов и календаря - они наложатся друг на друга.
+      // Если для данного режима указано отображение часов - это ошибка - отдать предпочтение отображению календаря. 
+      // Если нужно - надо настроить отображение часов / календаря / температуры в настройках цикла.
+      shiftCalendarPosition(clockOffsetX, clockOffsetY);                            CALENDAR_X += clockOffsetX;
+      needShowClock = false;
+    }
+
+    // 2. Произвольное размещение:
+    //    - Часы, Температура и Календарь отображаются независимо в указанных позициях, задаваемых настройками смещения относительно центра экрана
+    // В обоих режимах центр по вертикали - линия CLOCK_XC может сдвигаться, если включена прокрутка часов
+    // Сдвиг - в зависимости от режима Панель/Труба
+    //  - Труба  - сдвиг закольцован, как только изображение уходит за левый край матрицы - тут же появляется с правого края
+    //  - Панель - сдвиг выполняется с учетом ширины максимального блока часов / температуры / календаря - после того как точка изображения
+    //    уйдет за левый край матрицы, справа появится только после того, епе правй край макс. широкого блока уйдет за левый край матрицы
+    // Все позиции и смещения рассчитываются относиттельно центра экрана
+    //
+    
+    #if (USE_WEATHER == 1)      
+    if (needShowTemperature && temp_place == 3) {
+      // Произвольное размещение температуры
+      if (tempOffsetX != 0 || tempOffsetY != 0) {
+        shiftTemperaturePosition(tempOffsetX, tempOffsetY);                          TEMP_X += tempOffsetX;
+      }
+    }
+    #endif
+
+    if (needShowCalendar && cald_place == 3) {
+      // Произвольное размещение календаря
+      if (calendarOffsetX != 0 || calendarOffsetY != 0) {
+        shiftCalendarPosition(calendarOffsetX, calendarOffsetY);                     CALENDAR_X += calendarOffsetX;
+      }
+    }
+
+    bool isClockOverlayGot = false;
+    bool isCalendarOverlayGot = false;
+    #if (USE_WEATHER == 1)      
+    bool isTemperatureOverlayGot = false;
+    #endif
+    bool isTextOverlayGot = false;
+
+    // Сохранить оверлей - область узора на экране поверх которого будут выведены часы / температура / календарь 
+    if (needShowClock)       { saveClockOverlay();    isClockOverlayGot = true; }
+    if (needShowCalendar)    { saveCalendarOverlay(); isCalendarOverlayGot = true; }
+    #if (USE_WEATHER == 1)
+    if (needShowTemperature) { saveTemperatureOverlay(); isTemperatureOverlayGot = true;}
+    #endif  
+
+    // Если цикл не "холостой", а была отрисовка эффекта - и пришло время перерисовать текст - сохранить оверлей под размещения текста
+    // MC_CLOCK - ночные/дневные часы; MC_TEXT - показ IP адреса - всё на черном фоне
+    if (needShowText) {   
+      // Нарисовать оверлеем текст бегущей строки
+      calcTextRectangle();                                 // Вычислить позицию и размеры блока под оверлей бегущей строки
+      saveTextOverlay();                  // Сохранить оверлей - область узора на экране поверх которого будет выведена бегущая строка
+      isTextOverlayGot = true;
+    }
+    
+    // Нарисовать часы / температура / календарь 
+    if (needShowClock)       drawClock();
+    if (needShowCalendar)    drawCalendar();    
+    #if (USE_WEATHER == 1)
+    if (needShowTemperature) drawTemperature();
+    #endif
+
+    // Если цикл не "холостой", а была отрисовка эффекта - и пришло время перерисовать текст - сделать это
+    // MC_CLOCK - ночные/дневные часы; MC_TEXT - показ IP адреса - всё на черном фоне
+    if (needShowText) runningText();        // Нарисовать бегущую строку
+
+    // Вывести на матрицу подготовленное изображение
+    FastLEDshow();    
+  
+    // Восстановить пиксели эффекта сохраненные перед наложением часов / температуры / календаря / текста бегущей строки - (оверлей)
+    if (isTextOverlayGot) restoreTextOverlay(); 
+    if (isClockOverlayGot) restoreClockOverlay();
+    if (isCalendarOverlayGot) restoreCalendarOverlay();
+    #if (USE_WEATHER == 1)
+    if (isTemperatureOverlayGot) restoreTemperatureOverlay();
+    #endif
+
+    validClockX = needShowClock;
+    validCalendarX = needShowCalendar;
+    validTemperatureX = needShowTemperature;
+
+    lastClockX = clockX; lastClockW = clockW;
+    lastCalendarX = calendarX; lastCalendarW = calendarW;
+    #if (USE_WEATHER == 1)
+    lastTemperatureX = temperatureX; lastTemperatureW = temperatureW;
+    #endif
+  }  
 }
 
-void FastLEDshow() {  
+void FastLEDshow() { 
+  // Если при трансляции отправлять пакеты чаще E131_FRAME_DELAY мс - они забивают сеть до зависания роутера
   #if (USE_E131 == 1)
-  if (workMode == MASTER && (syncMode == PHYSIC || syncMode == LOGIC)) {
-    sendE131Screen();
-    delay(e131_send_delay);
+    if (abs((long long)(millis() - prevSendTimer)) > E131_FRAME_DELAY) {
+      if (workMode == MASTER && (syncMode == PHYSIC || syncMode == LOGIC)) {
+        sendE131Screen();
+        delay(e131_send_delay);
+      }
+      prevSendTimer = millis();
+    }
+  #endif
+  
+  FastLED.show();
+
+  #if defined(ESP8266) // Почему-то на ESP8266 часто вместо выврда на матрицу просто мерцает первый светодиод
+  FastLED.show();      // В issues FastLED пишут что это случается у многих. Объяснений нет, но говорят часто помогает
+  #endif               // пнуть вывод на матрицу второй раз сразу же после первого
+
+  prevShowTimer = millis();
+}
+
+void FastLEDsetBrightness(uint8_t value) {
+  #if (USE_E131 == 1)
+  if (workMode == MASTER) {
+    commandSetCurrentBrightness(value);
   }
   #endif
-  // Если выводить на матрицу чаще 5 мс - она мерцает
-  if (millis() - prevShowTimer > 5) {
-    FastLED.show();
-    prevShowTimer = millis();
-  }
+  addKeyToChanged("BR");
+  FastLED.setBrightness(value);
 }
 
 void processEffect(uint8_t aMode) {
+  
   // Эффект сменился?  resourcesMode - эффект, который был на предыдущем шаге цикла для которого были выделены ресурсы памяти, aMode - текущий эффект  
   if (resourcesMode != aMode && aMode < MAX_EFFECT) {
     // Освободить ресурсы (в основном динамическое выделение памяти под работу эффекта)    
@@ -401,6 +656,7 @@ void processEffect(uint8_t aMode) {
     resourcesMode = aMode;        
     loadingFlag = true;
   }  
+  
   #if (DEBUG_MEM_EFF == 1)
     bool saveLoadingFlag = loadingFlag;
     int32_t mem_bef, mem_aft, mem_dif;
@@ -408,6 +664,7 @@ void processEffect(uint8_t aMode) {
       mem_bef = ESP.getFreeHeap();
     }
   #endif 
+
   switch (aMode) {
     case MC_NOISE_MADNESS:       madnessNoise(); break;
     case MC_NOISE_CLOUD:         cloudNoise(); break;
@@ -425,10 +682,11 @@ void processEffect(uint8_t aMode) {
     case MC_FLICKER:             flickerRoutine(); break;
     case MC_PACIFICA:            pacificaRoutine(); break;
     case MC_SHADOWS:             shadowsRoutine(); break;
+    case MC_SHADOWS2:            shadows2Routine(); break;
     case MC_MATRIX:              matrixRoutine(); break;
     case MC_STARFALL:            starfallRoutine(); break;
     case MC_BALL:                ballRoutine(); break;
-    case MC_BALLS:               ballsRoutine(); break;
+    case MC_WORMS:               wormsRoutine(); break;
     case MC_RAINBOW:             rainbowRoutine(); break;      // rainbowHorizontal(); // rainbowVertical(); // rainbowDiagonal(); // rainbowRotate();
     case MC_FIRE:                fireRoutine(); break;
     case MC_FILL_COLOR:          fillColorProcedure(); break;
@@ -443,10 +701,10 @@ void processEffect(uint8_t aMode) {
     case MC_MUNCH:               munchRoutine(); break;
     case MC_ANALYZER:            analyzerRoutine(); break;
     case MC_PRIZMATA:            prizmataRoutine(); break;
+    case MC_PRIZMATA2:           prizmata2Routine(); break;
     case MC_RAIN:                rainRoutine(); break;
     case MC_FIRE2:               fire2Routine(); break;
     case MC_ARROWS:              arrowsRoutine(); break;
-    case MC_WEATHER:             weatherRoutine(); break;
     case MC_TEXT:                runningText(); break;
     case MC_CLOCK:               clockRoutine(); break;
     case MC_DAWN_ALARM:          dawnProcedure(); break;
@@ -455,8 +713,13 @@ void processEffect(uint8_t aMode) {
     case MC_STARS:               starsRoutine(); break;
     case MC_STARS2:              stars2Routine(); break;
     case MC_TRAFFIC:             trafficRoutine(); break;
+    case MC_FIREWORKS:           fireworksRoutine(); break;
+
+    #if (USE_ANIMATION == 1)
     case MC_IMAGE:               animationRoutine(); break;
+    case MC_WEATHER:             weatherRoutine(); break;
     case MC_SLIDE:               slideRoutine(); break;
+    #endif
 
     #if (USE_SD == 1)
     case MC_SDCARD:              sdcardRoutine(); break;
@@ -470,20 +733,7 @@ void processEffect(uint8_t aMode) {
   #if (DEBUG_MEM_EFF == 1)
     if (saveLoadingFlag) {
       mem_aft = ESP.getFreeHeap();
-      mem_dif = mem_bef - mem_aft;
-      if (mem_dif != 0) {
-        DEBUG(F("alloc: "));
-        DEBUG(mem_bef);
-        DEBUG(" - ");
-        DEBUG(mem_aft);
-        DEBUG(" --> ");
-        DEBUG(mem_bef - mem_aft);
-        #if defined(ESP8266)
-        DEBUG(String(F("  Max: ")) + String(ESP.getMaxFreeBlockSize()));
-        DEBUG(String(F("  Frag: ")) + String(ESP.getHeapFragmentation()));
-        #endif    
-        DEBUGLN();
-      }
+      printMemoryDiff(mem_bef, mem_aft, F("alloc: "));
     }
   #endif
 }
@@ -511,10 +761,11 @@ void releaseEffectResources(uint8_t aMode) {
     case MC_FLICKER:             break;
     case MC_PACIFICA:            break;
     case MC_SHADOWS:             break;
+    case MC_SHADOWS2:            shadows2RoutineRelease(); break;
     case MC_MATRIX:              break;
     case MC_STARFALL:            break;
     case MC_BALL:                break;
-    case MC_BALLS:               break;
+    case MC_WORMS:               break;
     case MC_RAINBOW:             break;
     case MC_FIRE:                fireRoutineRelease(); break;
     case MC_FILL_COLOR:          break;
@@ -529,10 +780,10 @@ void releaseEffectResources(uint8_t aMode) {
     case MC_MUNCH:               break;
     case MC_ANALYZER:            analyzerRoutineRelease(); break;
     case MC_PRIZMATA:            break;
+    case MC_PRIZMATA2:           prizmata2RoutineRelease(); break;
     case MC_RAIN:                rainRoutineRelease(); break;
     case MC_FIRE2:               fire2RoutineRelease(); break;
     case MC_ARROWS:              break;
-    case MC_WEATHER:             break;
     case MC_TEXT:                break;
     case MC_CLOCK:               break;
     case MC_DAWN_ALARM:          break;
@@ -541,8 +792,13 @@ void releaseEffectResources(uint8_t aMode) {
     case MC_STARS:               break;
     case MC_STARS2:              stars2RoutineRelease(); break;
     case MC_TRAFFIC:             trafficRoutineRelease(); break;
+    case MC_FIREWORKS:           fireworksRoutineRelease(); break;
+
+    #if (USE_ANIMATION == 1)
     case MC_IMAGE:               break;
+    case MC_WEATHER:             break;
     case MC_SLIDE:               slideRoutineRelease(); break;
+    #endif
 
     #if (USE_SD == 1)
     case MC_SDCARD:              sdcardRoutineRelease(); break;
@@ -554,21 +810,8 @@ void releaseEffectResources(uint8_t aMode) {
   }
 
   #if (DEBUG_MEM_EFF == 1)
-  mem_aft = ESP.getFreeHeap();
-  mem_dif = mem_aft - mem_bef;
-  if (mem_dif != 0) {
-    DEBUG(F("free:  "));
-    DEBUG(mem_bef);
-    DEBUG(" - ");
-    DEBUG(mem_aft);
-    DEBUG(" <-- ");
-    DEBUG(mem_aft - mem_bef);
-    #if defined(ESP8266)
-    DEBUG(String(F("  Max: ")) + String(ESP.getMaxFreeBlockSize()));
-    DEBUG(String(F("  Frag: ")) + String(ESP.getHeapFragmentation()));
-    #endif    
-    DEBUGLN();
-  }
+    mem_aft = ESP.getFreeHeap();
+    printMemoryDiff(mem_bef, mem_aft, F("free: "));
   #endif
 }
 
@@ -630,7 +873,7 @@ void nextModeHandler() {
   setTimersForMode(thisMode);
   
   FastLED.clear();
-  FastLED.setBrightness(globalBrightness);
+  FastLEDsetBrightness(deviceBrightness);
 }
 
 void prevModeHandler() {
@@ -680,7 +923,7 @@ void prevModeHandler() {
   setTimersForMode(thisMode);
   
   FastLED.clear();
-  FastLED.setBrightness(globalBrightness);
+  FastLEDsetBrightness(deviceBrightness);
 }
 
 void setTimersForMode(uint8_t aMode) {
@@ -693,7 +936,7 @@ void setTimersForMode(uint8_t aMode) {
         aMode == MC_SHADOWS || aMode == MC_PRIZMATA || aMode == MC_FIRE2 ||
         aMode == MC_WEATHER || aMode == MC_ARKANOID || aMode == MC_TETRIS || 
         aMode == MC_PATTERNS || aMode == MC_STARS || aMode == MC_STARS2 || aMode == MC_IMAGE || aMode == MC_SLIDE ||
-        aMode == MC_RAINBOW || aMode == MC_CYCLON
+        aMode == MC_RAINBOW || aMode == MC_CYCLON || aMode == MC_PRIZMATA2 || aMode == MC_SHADOWS2 || aMode == MC_FIREWORKS
         ) {      
       if (aMode == MC_PATTERNS) {
          uint8_t variant = map8(getEffectScaleParamValue(MC_PATTERNS),0,4);
@@ -702,6 +945,15 @@ void setTimersForMode(uint8_t aMode) {
       } else
       if (aMode == MC_RAINBOW) {
         effectTimer.setInterval(map8(efSpeed,1,128));
+      } else
+      if (aMode == MC_PRIZMATA2) {
+        effectTimer.setInterval(map8(efSpeed,1,40));
+      } else
+      if (aMode == MC_SHADOWS2) {
+        effectTimer.setInterval(map8(efSpeed,1,40));
+      } else
+      if (aMode == MC_FIREWORKS) {
+        effectTimer.setInterval(map8(efSpeed,10,64));
       } else
       if (aMode == MC_CYCLON) {
         effectTimer.setInterval(map8(efSpeed,1,50));
@@ -724,41 +976,40 @@ void setTimersForMode(uint8_t aMode) {
     }
     else
       effectTimer.setInterval(efSpeed);
-  } else if (aMode == MC_CLOCK) {
+  } else if (aMode == MC_CLOCK || aMode == MC_FILL_COLOR) {
       effectTimer.setInterval(250);
   }
 
+  currentTimerEffectId = aMode;
+  
   if (!e131_wait_command) {
     set_clockScrollSpeed(getClockScrollSpeed());
-    if (clockScrollSpeed < D_CLOCK_SPEED_MIN) set_clockScrollSpeed(D_CLOCK_SPEED_MIN); // Если clockScrollSpeed == 0 - бегущая строка начинает дергаться.
-    if (clockScrollSpeed > D_CLOCK_SPEED_MAX) set_clockScrollSpeed(D_CLOCK_SPEED_MAX);
+    if (clockScrollSpeed <= D_CLOCK_SPEED_MIN) set_clockScrollSpeed(D_CLOCK_SPEED_MIN); // Если clockScrollSpeed == 0 - бегущая строка начинает дергаться.
+    if (clockScrollSpeed >= D_CLOCK_SPEED_MAX) set_clockScrollSpeed(D_CLOCK_SPEED_MAX);
   }
-  if (clockScrollSpeed >= 240) {
+  if (clockScrollSpeed > 254) {
     clockTimer.stopTimer();
-    checkClockOrigin();
+    CLOCK_XC = pWIDTH / 2;
   } else {
-    clockTimer.setInterval(clockScrollSpeed);
+    clockTimer.setInterval(clockScrollSpeed * 4); // Самая медленная скорость - 253*4 - примерно раз в секунду
   }
 
   if (!e131_wait_command) {
     set_textScrollSpeed(getTextScrollSpeed());
-    if (textScrollSpeed < D_TEXT_SPEED_MIN) set_textScrollSpeed(D_TEXT_SPEED_MIN); // Если textScrollSpeed == 0 - бегущая строка начинает дергаться.
-    if (textScrollSpeed > D_TEXT_SPEED_MAX) set_textScrollSpeed(D_TEXT_SPEED_MAX);
+    if (textScrollSpeed <= D_TEXT_SPEED_MIN) set_textScrollSpeed(D_TEXT_SPEED_MIN); // Если textScrollSpeed == 0 - бегущая строка начинает дергаться.
+    if (textScrollSpeed >= D_TEXT_SPEED_MAX) set_textScrollSpeed(D_TEXT_SPEED_MAX);
   }
-  // Спеднее время цикла loop 25мс. Иногда когда нет другой работы цикл может завершаться за 7-8мс.
-  // Если время таймера сдвига бегущей строки меньше времени цикла - на таких "быстрых" итерациях происходит сдвиг строки быстрее чем в среднем - 
-  // что визуально смотрится как подергивание. Поэтому время сдвига строки ставить не чаще среднего времени цикла   
-  textTimer.setInterval(constrain(textScrollSpeed,25,255));
+  
+  textTimer.setInterval(textScrollSpeed);
 }
 
 void checkIdleState() {
 
   if (!(manualMode || specialMode)) {
     uint32_t ms = millis();
-  //if ((ms - autoplayTimer > autoplayTime) && !(manualMode || e131_wait_command)) {    // таймер смены режима
     if (((ms - autoplayTimer > autoplayTime) // таймер смены режима
            // при окончании игры не начинать ее снова
-           || gameOverFlag && !vREPEAT_PLAY
+           || (gameOverFlag && !vREPEAT_PLAY)
            #if (USE_SD == 1)
            // если файл с SD-карты проигрался до конца - сменить эффект
            || (thisMode == MC_SDCARD && play_file_finished)
@@ -773,14 +1024,16 @@ void checkIdleState() {
       // (thisMode == MC_SNAKE    && !gameOverFlag) ||   // Змейка долгая игра - не нужно дожидаться окончания, можно прервать
          (thisMode == MC_TETRIS   && !gameOverFlag) ||   // Тетрис не меняем на другой эффект, пока игра не закончится (стакан не переполнится)
       // (thisMode == MC_ARKANOID && !gameOverFlag) ||   // Арканоид долгая игра - не нужно дожидаться окончания, можно прервать
-         (showTextNow && (specialTextEffect >= 0))       // Воспроизводится бегущая строка на фоне указанного эффекта
+      // (showTextNow && (specialTextEffect >= 0))  ||   // Воспроизводится бегущая строка на фоне указанного эффекта
+         (showTextNow)                                   // Воспроизводится бегущая строка - эффект не менять
          #if (USE_SD == 1)
          // Для файла с SD-карты - если указан режим ожидания проигрывания файла до конца, а файл еще не проигрался - не менять эффект
-         || (thisMode == MC_SDCARD && (vWAIT_PLAY_FINISHED && !play_file_finished || loadingFlag))
+         // Также если файл проигрался, установлен флаг vREPEAT_PLAY и время смены режима еще не пришло - не менять эффект, продолжать проигрывать ролик
+         || (thisMode == MC_SDCARD && ((vWAIT_PLAY_FINISHED && !play_file_finished) || ((ms - autoplayTimer <= autoplayTime) && play_file_finished && vREPEAT_PLAY) || loadingFlag))
          #endif
       )
       {        
-        // Если бегущая строка или игра не завершены - смены режима не делать
+        // Если бегущая строка или игра не завершены - смены режима не делать        
         ok = false;
       } 
 
@@ -793,7 +1046,7 @@ void checkIdleState() {
       }
     }
   } else {
-    if (idleTimer.isReady()) {      // таймер холостого режима. Если время наступило - включить автосмену режимов 
+    if (idleTimer.isReady() && !(isTurnedOff || isNightClock)) {      // таймер холостого режима. Если время наступило - включить автосмену режимов 
       DEBUGLN(F("Автоматический режим включен по таймеру бездействия."));
       e131_wait_command = false;
       setManualModeTo(false);      

@@ -1,26 +1,43 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
-import {FormControl, Validators} from "@angular/forms";
-import {AppErrorStateMatcher, isNullOrUndefinedOrEmpty} from "../../../services/helper";
+import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import {AppErrorStateMatcher, isNullOrUndefinedOrEmpty, lengthValidator, validateCharacters} from "../../../services/helper";
 import {distinctUntilChanged} from "rxjs/operators";
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import {Base} from "../../base.class";
 
 @Component({
-  selector: 'app-tab-network-ap',
-  templateUrl: './tab-network-ap.component.html',
-  styleUrls: ['./tab-network-ap.component.scss'],
+    selector: 'app-tab-network-ap',
+    templateUrl: './tab-network-ap.component.html',
+    styleUrls: ['./tab-network-ap.component.scss'],
+    standalone: true,
+    imports: [
+        MatSlideToggleModule,
+        FormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        DisableControlDirective,
+        MatButtonModule,
+        MatIconModule,
+    ],
 })
-export class TabNetworkApComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabNetworkApComponent extends Base implements OnInit, OnDestroy {
 
   hideAPPassword = true;
   createAccessPoint = false;
 
   apFormControl = new FormControl('', [Validators.required]);
-  passAPFormControl = new FormControl('', [Validators.required]);
+  passAPFormControl = new FormControl('', [Validators.required, lengthValidator(8, 16), validateCharacters(this.L.$('Недопустимые символы'))]);
 
   matcher = new AppErrorStateMatcher();
 
@@ -30,6 +47,7 @@ export class TabNetworkApComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
   }
 
   ngOnInit() {
@@ -63,9 +81,7 @@ export class TabNetworkApComponent implements OnInit, OnDestroy {
   }
 
   isDisabled(): boolean {
-    return (
-      !this.managementService.state.power || !this.socketService.isConnected
-    );
+    return !this.socketService.isConnected;
   }
 
   isAccessPointValid(): boolean {
@@ -85,8 +101,4 @@ export class TabNetworkApComponent implements OnInit, OnDestroy {
     this.socketService.sendText(`$21 0 ${this.managementService.state.useAP ? '1' : '0'};`);
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
-  }
 }

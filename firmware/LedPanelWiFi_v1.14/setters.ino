@@ -3,28 +3,16 @@
 // чтобы зафиксировать изменение значения. Для этой цели данная страница содержит функции - сеттеры, 
 // устанавливающие значения переменных.
 
-// Добавление ключа в список изменившихся параметров, чьи новые значения необходимо отправить на сервер
-void addKeyToChanged(String key) {
-  String search = "|" + key + "|";
-  // Если ключа еще нет в строке измененных параметров - добавить 
-  if      (changed_keys.length() == 0)       changed_keys = search;
-  else if (changed_keys.indexOf(search) < 0) changed_keys += key + "|";
-}
+#include "timeProcessor.h"
 
-// Добавление списка ключей в список изменившихся параметров, чьи новые значения необходимо отправить на сервер
-void addKeysToChanged(String str) {
-  int16_t pos_start = 0;
-  int16_t pos_end = str.indexOf('|', pos_start);
-  int16_t len = str.length();
-  if (pos_end < 0) pos_end = len;
-  while (pos_start < len && pos_end >= pos_start) {
-    if (pos_end > pos_start) {      
-      String key = str.substring(pos_start, pos_end);
-      if (key.length() > 0) addKeyToChanged(key);
-    }
-    pos_start = pos_end + 1;
-    pos_end = str.indexOf('|', pos_start);
-    if (pos_end < 0) pos_end = len;
+// Добавление ключа в список изменившихся параметров, чьи новые значения необходимо отправить на сервер
+void addKeyToChanged(const String& key) {
+  String search('|'); search += key; search += '|';
+  // Если ключа еще нет в строке измененных параметров - добавить 
+  if (changed_keys.length() == 0) changed_keys = search; else 
+  if (changed_keys.indexOf(search) < 0) {
+    changed_keys += key;
+    changed_keys += '|';
   }
 }
 
@@ -38,6 +26,28 @@ void set_isTurnedOff(bool value) {
   #endif
 }
 
+// FK isAuxActive
+void set_isAuxActive(bool value) {
+  if (isAuxActive == value) return;
+  isAuxActive = value;
+  putAuxLineState(value);
+  addKeyToChanged("FK");
+  #if (USE_E131 == 1)
+    commandAuxActive(value);
+  #endif
+  DEBUG(F("Питaние дополнительной линии "));
+  if (isAuxActive) { DEBUGLN(F("включено"));  }
+  else             { DEBUGLN(F("выключено")); }
+}
+
+// FG состояние режимов линии управления - битовая маска
+void set_AuxLineModes(uint16_t value) {
+  if (auxLineModes == value) return;
+  auxLineModes = value;
+  putAuxLineModes(value);
+  addKeyToChanged("FG");
+}
+
 // BR isNightClock
 void set_isNightClock(bool value) {
   if (isNightClock == value) return;
@@ -45,14 +55,15 @@ void set_isNightClock(bool value) {
   addKeyToChanged("BR");
 }
 
-// BR globalBrightness
+// BR deviceBrightness
 void set_globalBrightness(uint8_t value) {
   #if (USE_E131 == 1)
     commandSetBrightness(value);
   #endif
-  if (globalBrightness == value) return;
+  if (deviceBrightness == value) return;
   putMaxBrightness(value);
-  globalBrightness = getMaxBrightness();
+  deviceBrightness = getMaxBrightness();
+  FastLEDsetBrightness(deviceBrightness);
   addKeyToChanged("BR");
 }
 
@@ -63,6 +74,7 @@ void set_specialBrightness(uint8_t value) {
   #endif
   if (specialBrightness == value) return;;
   specialBrightness = value;
+  FastLEDsetBrightness(specialBrightness);
   addKeyToChanged("BR");
 }
 
@@ -94,13 +106,19 @@ void set_idleTime(uint32_t value) {
 void set_isAlarming(bool value) {
   if (isAlarming == value) return;
   isAlarming = value;
-  addKeyToChanged("AL");
+  #if (USE_E131 == 1)
+    commandAlarming(isAlarming || isPlayAlarmSound);
+  #endif
+  addKeyToChanged("AL");  
 }
 
 // AL isPlayAlarmSound
 void set_isPlayAlarmSound(bool value) {
   if (isPlayAlarmSound == value) return;
   isPlayAlarmSound = value;
+  #if (USE_E131 == 1)
+    commandAlarming(isAlarming || isPlayAlarmSound);
+  #endif
   addKeyToChanged("AL");
 }
 
@@ -177,7 +195,7 @@ void set_useTemperatureColorNight(bool value) {
 }
 
 // W1 weather
-void set_weather(String value) {
+void set_weather(const String& value) {
   if (weather == value) return;
   weather = value;
   addKeyToChanged("W1");
@@ -189,16 +207,41 @@ void set_temperature(int8_t value) {
   temperature = value;
   addKeyToChanged("W2");
 }
+
+// TF temperature - в Цельсиях / Фаренгейтах
+void set_IsFarenheit(bool value) {
+  if (isFarenheit == value) return;
+  putIsFarenheit(value);
+  isFarenheit = value;
+  addKeyToChanged("TF");
+}
+
+// WV - нужно ли показывать знак градуса и C/F при отображении температуры в малых часах
+void set_ShowTempProps(int8_t value) {
+  int8_t old = (showTempDegree ? 0x02 : 0x00) | (showTempLetter ? 0x01 : 0x00);
+  if (old == value) return;
+  putShowTempProps(value);  
+  value = getShowTempProps();
+  showTempDegree = (value & 0x02) > 0;
+  showTempLetter = (value & 0x01) > 0;
+  addKeyToChanged("WV");
+}
+
+// WW - нужно ли показывать знак градуса и C/F при отображении температуры в макросе {WT} бегущей строки
+void set_ShowTempTextProps(int8_t value) {
+  int8_t old = (showTempTextDegree ? 0x02 : 0x00) | (showTempTextLetter ? 0x01 : 0x00);
+  if (old == value) return;
+  putShowTempTextProps(value);  
+  value = getShowTempTextProps();
+  showTempTextDegree = (value & 0x02) > 0;
+  showTempTextLetter = (value & 0x01) > 0;
+  addKeyToChanged("WW");
+}
+
 #endif
 
 // EF thisMode
 // EN thisMode
-// UT thisMode
-// UC thisMode
-// SE thisMode
-// BE thisMode
-// SS thisMode
-// SQ thisMode
 void set_thisMode(int8_t value) {
   if (thisMode == value) return;
   
@@ -206,45 +249,29 @@ void set_thisMode(int8_t value) {
   if (!valid) return;
 
   valid = (value >= 0 && value < MAX_EFFECT);
-
-  String keySE = "SE", keyBE = "BE", keyUT = "UT", keyUC = "UC", old_SQ, old_SS, old_SE, old_BE, old_UT, old_UC;
-
-  if (valid) {
-    old_UT = getStateValue(keyUT, thisMode);
-    old_UC = getStateValue(keyUC, thisMode);
-    old_SE = getStateValue(keySE, thisMode);
-    old_BE = getStateValue(keyBE, thisMode);
-    old_SS = getParamForMode(thisMode);
-    old_SQ = getParam2ForMode(thisMode);
-  }
-
+  
+  // Переключили на новый режим
   thisMode = value;
+  effect_name.clear();
 
+  // Ролучили имя нового режима
   if (valid && !isTurnedOff) {
-    effect_name = getEffectName(value);
+    effect_name += getEffectName(value);
   } else if (isTurnedOff) {
-    effect_name = F("Выключено");
+    effect_name += F("Выключено");
   } else {
     switch (value) {
-      case MC_DRAW:              effect_name = MODE_DRAW; break;
-      case MC_LOADIMAGE:         effect_name = MODE_LOAD_PICTURE; break;
-      case MC_TEXT:              effect_name = MODE_RUNNING_TEXT; break;
-      case MC_DAWN_ALARM_SPIRAL: effect_name = MODE_DAWN; break;
-      case MC_DAWN_ALARM_SQUARE: effect_name = MODE_DAWN; break;
-      default:                   effect_name = ""; break;
+      case MC_DRAW:              effect_name += FPSTR(MODE_DRAW); break;
+      case MC_LOADIMAGE:         effect_name += FPSTR(MODE_LOAD_PICTURE); break;
+      case MC_TEXT:              effect_name += FPSTR(MODE_RUNNING_TEXT); break;
+      case MC_DAWN_ALARM_SPIRAL: effect_name += FPSTR(MODE_DAWN); break;
+      case MC_DAWN_ALARM_SQUARE: effect_name += FPSTR(MODE_DAWN); break;
     }
   }
 
   addKeyToChanged("EF");
   addKeyToChanged("EN");
-
-  if (value < 0 || (valid && old_UT != getStateValue(keyUT, value)))  addKeyToChanged("UT");
-  if (value < 0 || (valid && old_UC != getStateValue(keyUC, value)))  addKeyToChanged("UC");
-  if (value < 0 || (valid && old_SE != getStateValue(keySE, value)))  addKeyToChanged("SE");
-  if (value < 0 || (valid && old_BE != getStateValue(keyBE, value)))  addKeyToChanged("BE");
-  if (value < 0 || (valid && old_SS != getParamForMode(value)))       addKeyToChanged("SS");
-  if (value < 0 || (valid && old_SQ != getParam2ForMode(value)))      addKeyToChanged("SQ");
-
+     
   #if (USE_E131 == 1)
     commandSetMode(thisMode);
   #endif      
@@ -254,7 +281,7 @@ void set_thisMode(int8_t value) {
 void set_GameButtonSpeed(uint8_t spd) {
   if (spd < 10) spd = 10;
   if (spd > 100) spd = 100;
-  bool old_value = getGameButtonSpeed();
+  uint8_t old_value = getGameButtonSpeed();
   if (old_value != spd) {
     putGameButtonSpeed(spd);
     addKeyToChanged("BS");
@@ -278,12 +305,11 @@ void set_CurrentSpecialMode(int8_t spc_mode) {
 void set_EffectTextOverlayUsage(uint8_t effect, bool value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
-  String key = "UT";
   bool old_value = getEffectTextOverlayUsage(effect);
-  String old_s_value = getStateValue(key, effect);
+  String old_s_value(getStateValue("UT", effect));
   if (old_value != value) {
     putEffectTextOverlayUsage(effect, value);
-    if (effect == thisMode && old_s_value != getStateValue(key, effect)) addKeyToChanged("UT");
+    if (effect == thisMode && old_s_value != getStateValue("UT", effect)) addKeyToChanged("UT");
   }
 }
 
@@ -291,12 +317,11 @@ void set_EffectTextOverlayUsage(uint8_t effect, bool value) {
 void set_EffectClockOverlayUsage(uint8_t effect, bool value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
-  String key = "UC";
   bool old_value = getEffectClockOverlayUsage(effect);
-  String old_s_value = getStateValue(key, effect);
+  String old_s_value(getStateValue("UC", effect));
   if (old_value != value) {
     putEffectClockOverlayUsage(effect, value);
-    if (effect == thisMode && old_s_value != getStateValue(key, effect)) addKeyToChanged("UC");
+    if (effect == thisMode && old_s_value != getStateValue("UC", effect)) addKeyToChanged("UC");
   }
 }
 
@@ -304,14 +329,13 @@ void set_EffectClockOverlayUsage(uint8_t effect, bool value) {
 void set_EffectSpeed(uint8_t effect, uint8_t value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
-  String key = "SE";
   uint8_t old_value = effectSpeed[effect];
-  String old_s_value = getStateValue(key, effect);
+  String old_s_value(getStateValue("SE", effect));
   if (old_value != value) {
     effectSpeed[effect] = value;
     putEffectSpeed(effect, value);
   }
-  if (effect == thisMode && old_s_value != getStateValue(key, effect)) addKeyToChanged("SE");
+  if (effect == thisMode && old_s_value != getStateValue("SE", effect)) addKeyToChanged("SE");
   #if (USE_E131 == 1)
     commandSetEffectSpeed(value);
     syncEffectSpeed = value;
@@ -322,14 +346,13 @@ void set_EffectSpeed(uint8_t effect, uint8_t value) {
 void set_EffectContrast(uint8_t effect, uint8_t value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
-  String key = "BE";
   uint8_t old_value = effectContrast[effect];
-  String old_s_value = getStateValue(key, effect);
+  String old_s_value(getStateValue("BE", effect));
   if (old_value != value) {
     effectContrast[effect] = value;
     putEffectContrast(effect, value);
   }
-  if (effect == thisMode && old_s_value != getStateValue(key, effect)) addKeyToChanged("BE");
+  if (effect == thisMode && old_s_value != getStateValue("BE", effect)) addKeyToChanged("BE");
   #if (USE_E131 == 1)
     commandSetEffectContrast(value);
     syncEffectContrast = value;
@@ -341,7 +364,7 @@ void set_EffectScaleParam(uint8_t effect, uint8_t value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
   uint8_t old_value = effectScaleParam[effect];
-  String old_s_value = getParamForMode(effect);
+  String old_s_value(getParamForMode(effect));
   if (old_value != value) {
     effectScaleParam[effect] = value;
     putScaleForEffect(effect, value);
@@ -358,7 +381,7 @@ void set_EffectScaleParam2(uint8_t effect, uint8_t value) {
   bool valid = effect < MAX_EFFECT;
   if (!valid) return;
   uint8_t old_value = effectScaleParam2[effect];
-  String old_s_value = getParam2ForMode(effect);
+  String old_s_value(getParam2ForMode(effect));
   if (old_value != value) {
     effectScaleParam2[effect] = value;
     putScaleForEffect2(effect, value);
@@ -431,16 +454,32 @@ void set_globalTextColor(uint32_t value) {
   addKeyToChanged("C2");
 }
 
+// C12 12/24-часовой фоормат времени
+void set_Time12(bool value) {
+  if (time_h12 == value) return;
+  putTime12(value);
+  time_h12 = value;
+  addKeyToChanged("C12");
+}
+
+// C35 - тип шрифта 3x5 - 0 - квадратный; 1 - скругленный
+void set_SmallFontType(int8_t value) {
+  int8_t old = use_round_3x5 ? 1 : 0;
+  if (old == value) return;
+  putSmallFontType(value);
+  use_round_3x5 = value == 1;
+  addKeyToChanged("C35");
+}
+
 // CE clockOverlayEnabled
 void set_clockOverlayEnabled(bool value) {
-  String key = "CE";
   bool old_value = clockOverlayEnabled;
-  String old_s_value = getStateValue(key, thisMode);
+  String old_s_value(getStateValue("CE", thisMode));
   if (old_value != value) {
     putClockOverlayEnabled(value);
     clockOverlayEnabled = getClockOverlayEnabled();
   }
-  if (old_s_value != getStateValue(key, thisMode)) addKeyToChanged("CE");
+  if (old_s_value != getStateValue("CE", thisMode)) addKeyToChanged("CE");
 }
 
 // CC COLOR_MODE
@@ -460,9 +499,8 @@ void set_drawColor(uint32_t value) {
 
 // CO CLOCK_ORIENT
 void set_CLOCK_ORIENT(uint8_t value) {
-  String key = "CO";
   uint8_t old_value = CLOCK_ORIENT;
-  String old_s_value = getStateValue(key, thisMode);
+  String old_s_value(getStateValue("CO", thisMode));
   if (old_value != value) {
     putClockOrientation(value);
     CLOCK_ORIENT = value;
@@ -473,7 +511,7 @@ void set_CLOCK_ORIENT(uint8_t value) {
       putClockOrientation(value);
     }
   }
-  if (old_s_value != getStateValue(key, thisMode)) addKeyToChanged("CO");
+  if (old_s_value != getStateValue("CO", thisMode)) addKeyToChanged("CO");
 }
 
 // CK CLOCK_SIZE
@@ -482,6 +520,76 @@ void set_CLOCK_SIZE(uint8_t value) {
   putClockSize(value);
   CLOCK_SIZE = getClockSize();
   addKeyToChanged("CK");
+}
+
+// CX смещение часов по оси X
+void set_ClockOffsetX(int8_t value) {
+  int8_t oldValue = getClockOffsetX();
+  if (oldValue != value) {
+    putClockOffsetX(value);
+  }
+  clockOffsetX = getClockOffsetX();
+  addKeyToChanged("CX");
+}
+
+// CY смещение часов по оси Y
+void set_ClockOffsetY(int8_t value) {
+  int8_t oldValue = getClockOffsetY();
+  if (oldValue != value) {
+    putClockOffsetY(value);
+  }
+  clockOffsetY = getClockOffsetY();
+  addKeyToChanged("CY");
+}
+
+// CXT смещение температуры по оси X
+void set_TempOffsetX(int8_t value) {
+  int8_t oldValue = getTempOffsetX();
+  if (oldValue != value) {
+    putTempOffsetX(value);
+  }
+  tempOffsetX = getTempOffsetX();
+  addKeyToChanged("CXT");
+}
+
+// CYT смещение температуры по оси Y
+void set_TempOffsetY(int8_t value) {
+  int8_t oldValue = getTempOffsetY();
+  if (oldValue != value) {
+    putTempOffsetY(value);
+  }
+  tempOffsetY = getTempOffsetY();
+  addKeyToChanged("CYT");
+}
+
+// CXC смещение календаря по оси X
+void set_CalendarOffsetX(int8_t value) {
+  int8_t oldValue = getCalendarOffsetX();
+  if (oldValue != value) {
+    putCalendarOffsetX(value);
+  }
+  calendarOffsetX = getCalendarOffsetX();
+  addKeyToChanged("CXC");
+}
+
+// CYC смещение календаря по оси Y
+void set_CalendarOffsetY(int8_t value) {
+  int8_t oldValue = getCalendarOffsetY();
+  if (oldValue != value) {
+    putCalendarOffsetY(value);
+  }
+  calendarOffsetY = getCalendarOffsetY();
+  addKeyToChanged("CYC");
+}
+
+// CYL смещение бегущей строки по оси Y
+void set_TextOffsetY(int8_t value) {
+  int8_t oldValue = getTextOffsetY();
+  if (oldValue != value) {
+    putTextOffsetY(value);
+  }
+  textOffsetY = getTextOffsetY();
+  addKeyToChanged("CYL");
 }
 
 // NB nightClockBrightness
@@ -501,6 +609,36 @@ void set_nightClockColor(uint8_t value) {
   addKeyToChanged("NC");
 }
 
+// CD - ширина точки в больших часах
+void set_clockDotWidth(uint8_t value) {
+  if (clockDotWidth == value) return;
+  putClockDotWidth(value);
+  clockDotWidth = getClockDotWidth();
+  addKeyToChanged("CD");
+}
+
+// CF - отображени года в календаре - 0/2/4 цифры года, календарь в одну / две строки
+void set_CalendarYearWidth(uint8_t value) {
+  uint8_t old_value = (calendarYearLines << 4) | calendarYearWidth;
+  if (old_value == value) return;
+  putCalendarYearWidth(value);
+  value = getCalendarYearWidth();
+  calendarYearWidth = value & 0x0F;
+  calendarYearLines = (value & 0xF0) >> 4;
+  if (!(calendarYearWidth == 0 || calendarYearWidth == 2 || calendarYearWidth == 4)) calendarYearWidth = 2;
+  if (calendarYearLines < 1) calendarYearLines = 1;
+  if (calendarYearLines > 2) calendarYearLines = 2;
+  addKeyToChanged("CF");
+}
+
+// CS - наличие пробела вокруг точек в больших часах
+void set_clockDotSpace(bool value) {
+  if (clockDotSpace == value) return;
+  putClockDotSpace(value);
+  clockDotSpace = getClockDotSpace();
+  addKeyToChanged("CS");
+}
+
 // SC clockScrollSpeed
 void set_clockScrollSpeed(uint8_t value) {
   if (clockScrollSpeed == value) return;
@@ -512,28 +650,60 @@ void set_clockScrollSpeed(uint8_t value) {
   #endif
 }
 
-// DC showDateInClock
-void set_showDateInClock(bool value) {
-  if (showDateInClock == value) return;
-  putShowDateInClock(value);
-  showDateInClock = getShowDateInClock();
-  addKeyToChanged("DC");
+// CSV clock_show_variant
+void set_clockShowVariant(uint8_t value) {
+  if (clock_show_variant == value) return;
+  putClockShowVariant(value);
+  clock_show_variant = getClockShowVariant();
+  addKeyToChanged("CSV");
 }
 
-// DD showDateDuration
-void set_showDateDuration(uint8_t value) {
-  if (showDateDuration == value) return;
-  putShowDateDuration(value);
-  showDateDuration = getShowDateDuration();
-  addKeyToChanged("DD");
+// CSA clock_show_alignment
+void set_clockShowAlignment(uint8_t value) {
+  if (clock_show_alignment == value) return;
+  putClockShowAlignment(value);
+  clock_show_alignment = getClockShowAlignment();
+  addKeyToChanged("CSA");
 }
 
-// DI showDateInterval
-void set_showDateInterval(uint8_t value) {
-  if (showDateInterval == value) return;
-  putShowDateInterval(value);
-  showDateInterval = getShowDateInterval();
-  addKeyToChanged("DI");
+// HTR hide_on_text_running
+void set_hideOnTextRunning(uint8_t value) {
+  if (hide_on_text_running == value) return;
+  putHideOnTextRunning(value);
+  hide_on_text_running = getHideOnTextRunning();
+  addKeyToChanged("HTR");
+}
+
+// CT1 clock_cycle_T1
+void set_clockCycleT1(uint8_t value) {
+  if (clock_cycle_T1 == value) return;
+  putClockCycleT1(value);
+  clock_cycle_T1 = getClockCycleT1();
+  addKeyToChanged("CT1");
+}
+
+// CT2 clock_cycle_T2
+void set_clockCycleT2(uint8_t value) {
+  if (clock_cycle_T2 == value) return;
+  putClockCycleT2(value);
+  clock_cycle_T2 = getClockCycleT2();
+  addKeyToChanged("CT2");
+}
+
+// CF1 clock_cycle_F1
+void set_clockCycleF1(uint8_t value) {
+  if (clock_cycle_F1 == value) return;
+  putClockCycleF1(value);
+  clock_cycle_F1 = getClockCycleF1();
+  addKeyToChanged("CF1");
+}
+
+// CF2 clock_cycle_F2
+void set_clockCycleF2(uint8_t value) {
+  if (clock_cycle_F2 == value) return;
+  putClockCycleF2(value);
+  clock_cycle_F2 = getClockCycleF2();
+  addKeyToChanged("CF2");
 }
 
 // NP useNtp
@@ -542,71 +712,65 @@ void set_useNtp(bool value) {
   putUseNtp(value);
   useNtp = getUseNtp();
   addKeyToChanged("NP");
+  useNtp ? TimeProcessor::getInstance().enable() : TimeProcessor::getInstance().disable();
 }
 
-// NT SYNC_TIME_PERIOD
-void set_SYNC_TIME_PERIOD(uint16_t value) {
-  if (SYNC_TIME_PERIOD == value) return;
-  putNtpSyncTime(value);
-  SYNC_TIME_PERIOD = getNtpSyncTime();
-  addKeyToChanged("NT");
-}
-
-// NZ timeZoneOffset
-void set_timeZoneOffset(int16_t value) {
-  if (timeZoneOffset == value) return;
+// TZ ntpTimeZone
+void set_ntpTimeZone(const String& value) {
+  if (getTimeZone() == value) return;
   putTimeZone(value);
-  timeZoneOffset = getTimeZone();
-  addKeyToChanged("NZ");
-}
-
-// NM timeZoneOffsetMinutes
-void set_timeZoneOffsetMinutes(int16_t value) {
-  if (timeZoneOffsetMinutes == value) return;
-  putTimeZoneMinutes(value);
-  timeZoneOffsetMinutes = getTimeZoneMinutes();
-  addKeyToChanged("NM");
+  applyTimeZone(value);
+  addKeyToChanged("TZ");
 }
 
 // NS ntpServerName
-void set_ntpServerName(String value) {
+void set_ntpServerName(const String& value) {
   if (getNtpServer() == value) return;
   putNtpServer(value);  
-  getNtpServer().toCharArray(ntpServerName, 31);
   addKeyToChanged("NS");
+  TimeProcessor::getInstance().setcustomntp(value.c_str());
 }
 
 // NW ssid
-void set_Ssid(String value) {
+void set_Ssid(const String& value) {
   putSsid(value);
-  ssid = value;
   addKeyToChanged("NW");
 }
 
+// HN - system/host name
+void set_SystemName(const String& value) {
+  putSystemName(value);
+  addKeyToChanged("HN");
+}
+
 // NA|NX pass
-void set_pass(String value) {
+void set_pass(const String& value) {
   putPass(value);
-  pass = value;
   addKeyToChanged("NA");
   addKeyToChanged("NX");
 }
               
 // AN apName
-void set_SoftAPName(String value) {
+void set_SoftAPName(const String& value) {
   if (getSoftAPName() == value) return;
   putSoftAPName(value);
-  getSoftAPName().toCharArray(apName, 10);
   addKeyToChanged("AN");
 }              
 
 // AA|AB apPass
-void set_SoftAPPass(String value) {
+void set_SoftAPPass(const String& value) {
   if (getSoftAPPass() == value) return;
   putSoftAPPass(value);
-  getSoftAPPass().toCharArray(apPass, 16);
   addKeyToChanged("AA");
   addKeyToChanged("AB");
 }              
+
+// DH - ширина точки в больших часах
+void set_useDHCP(bool value) {
+  if (getUseDHCP() == value) return;
+  putUseDHCP(value);
+  addKeyToChanged("DH");
+}
 
 // IP wifi_connected
 void set_wifi_connected(bool value) {
@@ -624,14 +788,6 @@ void set_StaticIP(uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p4) {
   putStaticIP(p1, p2, p3, p4);
   addKeyToChanged("IP");
 }              
-
-// DW showWeatherInClock
-void set_showWeatherInClock(bool value) {
-  if (showWeatherInClock == value) return;
-  putShowWeatherInClock(value);
-  showWeatherInClock = getShowWeatherInClock();
-  addKeyToChanged("DW");
-}
 
 // OF needTurnOffClock
 void set_needTurnOffClock(bool value) {
@@ -936,3 +1092,11 @@ void set_SyncViewport(int8_t masterX, int8_t masterY, int8_t localX, int8_t loca
 }
 
 #endif
+
+void applyTimeZone(const String& value) {
+  // value - правило времннОй зоны. Может впереди содержать трехзначный индекс строки в списке: 'MSK-3' или '349_MSK-3'
+  // если индекс есть - нужно удалить его
+  String rule = value.indexOf('_') > 0 ? value.substring(4) : value; 
+  TimeProcessor::getInstance().tzsetup(rule.c_str());
+}
+  

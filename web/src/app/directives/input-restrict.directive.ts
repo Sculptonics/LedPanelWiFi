@@ -2,10 +2,10 @@ import {Directive, HostListener, Input} from '@angular/core';
 import {isNullOrUndefined, isNullOrUndefinedOrEmpty} from "../services/helper";
 
 @Directive({
-  selector: '[restrict]'
+    selector: '[restrict]',
+    standalone: true
 })
 export class InputRestrictionDirective {
-  public className = 'InputRestrictionDirective';
 
   @Input() inputType: string = "";
   @Input() regExp: string = "";

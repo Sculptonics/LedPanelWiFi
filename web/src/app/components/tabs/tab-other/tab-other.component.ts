@@ -1,39 +1,83 @@
-import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
+import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
+import {debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
 import {AppErrorStateMatcher, isNullOrUndefined, isNullOrUndefinedOrEmpty, rangeValidator} from "../../../services/helper";
-import {FormControl, Validators} from "@angular/forms";
+import { FormControl, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import {distinctUntilChanged} from "rxjs/operators";
 import {ConfirmationDialogComponent} from "../../confirmation-dialog/confirmation-dialog.component";
 import {MatDialog} from "@angular/material/dialog";
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatButtonModule } from '@angular/material/button';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import {Base} from "../../base.class";
+import {FileUploaderWrapper} from "../../../services/file.uploader.wrapper";
+import {FileUploadModule} from "ng2-file-upload";
+import {MatCheckboxModule} from "@angular/material/checkbox";
 
 @Component({
-  selector: 'app-tab-other',
-  templateUrl: './tab-other.component.html',
-  styleUrls: ['./tab-other.component.scss'],
+    selector: 'app-tab-other',
+    templateUrl: './tab-other.component.html',
+    styleUrls: ['./tab-other.component.scss'],
+    standalone: true,
+  imports: [
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
+    ReactiveFormsModule,
+    DisableControlDirective,
+    MatButtonModule,
+    MatTooltipModule,
+    MatIconModule,
+    FileUploadModule,
+    MatCheckboxModule,
+  ],
 })
-export class TabOtherComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabOtherComponent extends Base implements OnInit, OnDestroy {
 
   // @ts-ignore
   @ViewChild('input2') input2: ElementRef;
+  @ViewChild('uploadFileForm') uploadFileForm!: ElementRef;
 
   autoLimitFormControl = new FormControl(0, [Validators.required, rangeValidator(0, 50000)]);
+  systemNameFormControl = new FormControl('', [Validators.required]);
+
   matcher = new AppErrorStateMatcher();
 
   fs_allow: boolean = true;
   sd_allow: boolean = false;
   backup_place: number = 0;
+  backup_file: string = '';
 
   constructor(
     public socketService: WebsocketService,
     public managementService: ManagementService,
     public commonService: CommonService,
     public L: LanguagesService,
-    private dialog: MatDialog) {
+    public fileUploaderWrapper: FileUploaderWrapper,
+    private dialog: MatDialog)
+  {
+    super();
+    this.fileUploaderWrapper.complete$.subscribe((result) => {
+      if (result.result === 'success') {
+        // Отправить команду восстановления конфигурации из загруженного файла
+        // $23 2 ST;   - Загрузить EEPROM из файла  ST = 0 - внутр. файл. системы; 1 - на SD-карты
+        this.socketService.sendText('$23 2 0;');
+        this.managementService.text_lines = [];
+      } else if (result.result === 'error') {
+        // Вывести сообщение об ошибке
+        const dialog = this.dialog.open(ConfirmationDialogComponent, {
+          width: '400px',
+          panelClass: 'centralized-dialog-content',
+          data: {title: this.L.$('Ошибка'), message: this.L.$('Upload error'), useCancel: false, okText: this.L.$('OK') }
+        });
+      }
+    })
   }
 
   ngOnInit() {
@@ -42,7 +86,7 @@ export class TabOtherComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$), distinctUntilChanged(), debounceTime(1000))
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
-          const request = 'PW|FS|SX|EE';
+          const request = 'PW|HN|FS|SX|EE|BF';
           this.managementService.getKeys(request);
         }
       });
@@ -52,6 +96,9 @@ export class TabOtherComponent implements OnInit, OnDestroy {
       .subscribe((key: string) => {
         if (!isNullOrUndefinedOrEmpty(key)) {
           switch (key) {
+            case 'HN':
+              this.systemNameFormControl.setValue(this.managementService.state.hostName);
+              break;
             case 'PW':
               this.autoLimitFormControl.setValue(this.managementService.state.curr_limit);
               break;
@@ -64,16 +111,16 @@ export class TabOtherComponent implements OnInit, OnDestroy {
             case 'EE': // Наличие сохраненных настроек EEPROM на SD-карте или в файловой системе МК: 0 - нет 1 - есть в FS; 2 - есть на SD; 3 - есть в FS и на SD
               this.backup_place = this.managementService.state.backup_place;
               break;
-
+            case 'BF': // Имя файла сохраненных настроек EEPROM
+              this.backup_file = this.managementService.state.backup_file;
+              break;
           }
         }
       });
   }
 
   isDisabled(): boolean {
-    return (
-      !this.managementService.state.power || !this.socketService.isConnected
-    );
+    return !this.socketService.isConnected;
   }
 
   getHintForLimit() {
@@ -87,11 +134,22 @@ export class TabOtherComponent implements OnInit, OnDestroy {
     return this.autoLimitFormControl.valid;
   }
 
+  isSystemNameValid(): boolean {
+    return this.systemNameFormControl.valid;
+  }
+
   applySettings($event: MouseEvent) {
     const PW = this.managementService.state.curr_limit = Number(this.autoLimitFormControl.value);
 
     // $23 0 VAL;  - лимит по потребляемому току
     this.socketService.sendText(`$23 0 ${PW};`);
+  }
+
+  applySystemName($event: MouseEvent) {
+    const SN = this.managementService.state.hostName = this.systemNameFormControl.value ?? "";
+
+    // $6 19|text;  - имя системы
+    this.socketService.sendText(`$6 19|${SN}`);
   }
 
   loadFrom(from: number) {
@@ -106,6 +164,7 @@ export class TabOtherComponent implements OnInit, OnDestroy {
         if (result === true) {
           // $23 2 ST;   - Загрузить EEPROM из файла  ST = 0 - внутр. файл. системы; 1 - на SD-карты
           this.socketService.sendText(`$23 2 ${from};`);
+          this.managementService.text_lines = [];
         }
       });
   }
@@ -141,8 +200,13 @@ export class TabOtherComponent implements OnInit, OnDestroy {
     this.socketService.sendText('$23 4;');
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  onUpload() {
+    this.fileUploaderWrapper.onFileSelect(
+      this.L.$("Загрузить"),
+      this.L.$("Загрузить"),
+      this.uploadFileForm,
+      '/a/',
+      { confirmationMessage: null, fileNewName: this.backup_file });
   }
+
 }

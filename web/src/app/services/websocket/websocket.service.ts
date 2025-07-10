@@ -1,8 +1,10 @@
 import {Injectable, OnDestroy} from '@angular/core';
-import {BehaviorSubject, interval, Observable, Observer, Subject, Subscription, takeUntil, takeWhile} from 'rxjs';
+import {BehaviorSubject, catchError, interval, Observable, Observer, Subject, throwError as observableThrowError, Subscription, takeUntil, takeWhile, tap} from 'rxjs';
 import {distinctUntilChanged, filter, map, share} from 'rxjs/operators';
 import {WebSocketSubject, WebSocketSubjectConfig} from 'rxjs/webSocket';
 import {environment} from "../../../environments/environment";
+import {Base} from "../../components/base.class";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 
 export const WS = {
   // 'Топики' получения состояния из устройства
@@ -19,7 +21,7 @@ export const WS = {
     TEXT:    'txt',	  // - сообщения о событиях бегущей строки - запуск, окончание
     E131:    'e131',  // - сообщения о событиях синхронизации между матрицами
     EDT:     'edt'	  // - сообщения c параметрами редактируемого эффекта
-    // @formatter:oт
+    // @formatter:on
   },
   // 'Топики' отправки команд в устройство
   SEND: {
@@ -45,12 +47,11 @@ export interface IWsMessage<T> {
 @Injectable({
   providedIn: 'root'
 })
-export class WebsocketService implements IWebsocketService, OnDestroy {
+export class WebsocketService extends Base implements IWebsocketService, OnDestroy {
+
+  public host: string = environment.production ? window.location.hostname : '192.168.0.100';
 
   private readonly config: WebSocketSubjectConfig<IWsMessage<any>>;
-
-  private websocketSub: Subscription;
-  private statusSub: Subscription;
 
   // Observable для реконнекта по interval
   private reconnection$: Observable<number> | null = null;
@@ -62,16 +63,15 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
   // вспомогательный Observable для работы с подписками на сообщения
   private wsMessages$: Subject<IWsMessage<any>>;
 
-  private url = environment.production ? `ws://${window.location.hostname}/ws` : 'ws://192.168.0.100/ws'; // 'ws://192.168.4.1/ws';
+  private url = `ws://${this.host}/ws`;
 
-  private pingInterval = 5000;
+  private pingInterval = 30000;
   private reconnectInterval = 5000;
   private last_ping_time: number = Date.now();
   private sentPing = false;
   private gotPong = false;
 
   private webSocketSubscription!: Subscription;
-  private destroy$ = new Subject();
 
   // -------------------------------------
 
@@ -84,7 +84,8 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
 
   // -------------------------------------
 
-  constructor() {
+  constructor(private httpClient: HttpClient) {
+    super();
 
     this.config = {
       url: this.url,
@@ -100,6 +101,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
         next: (event: Event) => {
           console.log('WebSocket connected!');
           this.connection$?.next(true);
+          this.ping();
           this.firstConnect = false;
         }
       }
@@ -110,7 +112,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
       this.connection$ = observer;
     }).pipe(share(), distinctUntilChanged());
 
-    this.statusSub = this.status$
+    this.status$
       .pipe(takeUntil(this.destroy$))
       .subscribe((isConnected) => {
         if (this.isConnected !== isConnected) {
@@ -126,7 +128,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
 
     // говорим, что что-то пошло не так + проверка полученных в сокет данных
     this.wsMessages$ = new Subject<IWsMessage<any>>();
-    this.websocketSub = this.wsMessages$
+    this.wsMessages$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: IWsMessage<any>) => {
@@ -216,7 +218,7 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
     } else if (this.reconnection$ == null) {
       this.reconnect();
     }
-}
+  }
 
   /*
   * answer on ping received
@@ -256,9 +258,118 @@ export class WebsocketService implements IWebsocketService, OnDestroy {
   public sendText(text: string): void {
     this.send(WS.SEND.COMMAND, text);
   }
-  ngOnDestroy() {
+
+  public getFile(fileName: string): Observable<any> {
+
+    let contentType: string;
+    // https://github.com/angular/angular/issues/18586
+    const reForFilenameExtension = /(?:\.([^.]+))?$/;
+    // @ts-ignore
+    const ext = reForFilenameExtension.exec(fileName)[1];
+    switch (ext) {
+      case 'json':
+        contentType = 'text/plain';
+        break;
+      //   https://stackoverflow.com/questions/25727306/request-header-field-access-control-allow-headers-is-not-allowed-by-access-contr
+      case 'tar':
+      case 'tgz':
+        contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+        break;
+      case 'txt':
+        contentType = 'text/plain';
+        break;
+      default:
+        contentType = 'text/plain';
+        break;
+    }
+
+    const headers = new HttpHeaders().set('content-type', contentType).set('Cache-Control', 'no-cache, no-store, must-revalidate, post-check=0, pre-check=0').set('Pragma', 'no-cache');
+    const url = `http://${this.host}/${fileName}`;
+
+    switch (ext) {
+      case 'json':
+        contentType = 'text/plain';
+        return this.httpClient.get(url, { headers: headers, responseType: 'json' })
+          .pipe(
+            map(response => response),
+            tap(response => this.logResponse('getFile', 'getFile()', url, '', '', response)),
+            catchError(error => {
+              return observableThrowError(error);
+            }));
+
+      case 'tar':
+      case 'tgz':
+        contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+        return this.httpClient.get(url, { headers: headers, responseType: 'blob' })
+          .pipe(
+            map(response => response),
+            tap(response => this.logResponse('getFile', 'getFile()', url, '', '', response)),
+            catchError(error => {
+              return observableThrowError(error);
+            }));
+
+      case 'txt':
+        contentType = 'text/plain';
+        return this.httpClient.get(url, { headers: headers, responseType: 'text' })
+          .pipe(
+            map(response => response),
+            tap(response => this.logResponse('getFile', 'getFile()', url, '', '', response)),
+            catchError(error => {
+              return observableThrowError(error);
+            }));
+
+      default:
+        contentType = 'text/plain';
+        return this.httpClient.get(url, { headers: headers, responseType: 'json' })
+          .pipe(
+            map(response => response),
+            tap(response => this.logResponse('getFile', 'getFile()', url, '', '', response)),
+            catchError(error => {
+              return observableThrowError(error);
+            }));
+    }
+
+  }
+
+  public logResponse(caller: Object | string, functionName: string, request: any, dataset: any, component: any, response: any) {
+    const name = typeof caller === 'string' ? caller : caller.constructor.name;
+    window.console.group(name);
+    window.console.log(functionName + ' << \'' + dataset + '\' and \'' + component + '\'');
+    window.console.log('request:', request);
+    window.console.log('response:', response);
+    window.console.groupEnd();
+  }
+
+  public handleError(caller: Object | string, msg: string, response?: any) {
+    const name = typeof caller === 'string' ? caller : caller.constructor.name;
+    window.console.group(name);
+    window.console.error(msg, response);
+    window.console.groupEnd();
+  }
+
+  public handleWarning(caller: Object | string, msg: string, warn?: any) {
+    const name = typeof caller === 'string' ? caller : caller.constructor.name;
+    window.console.group(name);
+    window.console.warn(msg, warn);
+    window.console.groupEnd();
+  }
+
+  public handleInfo(caller: Object | string, msg: string, info?: any) {
+    const name = typeof caller === 'string' ? caller : caller.constructor.name;
+    window.console.group(name);
+    window.console.info(msg, info);
+    window.console.groupEnd();
+  }
+
+  public handleTrace(caller: Object | string, msg: string, trace?: any) {
+    const name = typeof caller === 'string' ? caller : caller.constructor.name;
+    window.console.group(name);
+    window.console.log(msg, trace);
+    window.console.groupEnd();
+  }
+
+  override ngOnDestroy() {
     this.webSocketSubscription.unsubscribe();
-    this.destroy$.next(true);
-    this.destroy$.complete();
+    super.ngOnDestroy();
   }
 }

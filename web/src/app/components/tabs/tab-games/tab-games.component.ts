@@ -1,23 +1,39 @@
 import {Component, HostListener, OnDestroy, OnInit} from '@angular/core';
-import {BehaviorSubject, debounceTime, Subject, takeUntil, timer} from 'rxjs';
+import {BehaviorSubject, debounceTime, takeUntil, timer} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
 import {distinctUntilChanged} from "rxjs/operators";
 import {isNullOrUndefinedOrEmpty} from "../../../services/helper";
+import { MatIconModule } from '@angular/material/icon';
+import { NgClass } from '@angular/common';
+import { MatSliderModule } from '@angular/material/slider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import {Base} from "../../base.class";
+import {MatCheckbox} from "@angular/material/checkbox";
+import {FormsModule} from "@angular/forms";
 
 @Component({
-  selector: 'app-tab-games',
-  templateUrl: './tab-games.component.html',
-  styleUrls: ['./tab-games.component.scss'],
+    selector: 'app-tab-games',
+    templateUrl: './tab-games.component.html',
+    styleUrls: ['./tab-games.component.scss'],
+    standalone: true,
+  imports: [
+    MatFormFieldModule,
+    MatSliderModule,
+    NgClass,
+    MatIconModule,
+    MatCheckbox,
+    FormsModule,
+  ],
 })
-export class TabGamesComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabGamesComponent extends Base implements OnInit, OnDestroy {
 
   public bright: number = -1;
   public speed: number = -1;
   public repeat: number = 0;
+  public invert_left_right: boolean = false;
 
   private brightChanged$ = new BehaviorSubject(this.bright);
   private speedChanged$ = new BehaviorSubject(this.speed);
@@ -32,6 +48,7 @@ export class TabGamesComponent implements OnInit, OnDestroy {
     public commonService: CommonService,
     public L: LanguagesService
   ) {
+    super();
   }
 
   ngOnInit() {
@@ -189,18 +206,24 @@ export class TabGamesComponent implements OnInit, OnDestroy {
   }
 
   btnRight() {
-    // $3 11 - кнопка вверх
-    this.socketService.sendText('$3 11;');
+    // $3 11 - кнопка вправо
+    if (this.invert_left_right)
+      this.socketService.sendText('$3 13;');
+    else
+      this.socketService.sendText('$3 11;');
   }
 
   btnDown() {
-    // $3 12 - кнопка вверх
+    // $3 12 - кнопка вниз
     this.socketService.sendText('$3 12;');
   }
 
   btnLeft() {
-    // $3 13 - кнопка вверх
-    this.socketService.sendText('$3 13;');
+    // $3 13 - кнопка влево
+    if (this.invert_left_right)
+      this.socketService.sendText('$3 11;');
+    else
+      this.socketService.sendText('$3 13;');
   }
 
   btnCenter() {
@@ -215,11 +238,6 @@ export class TabGamesComponent implements OnInit, OnDestroy {
 
   btnRelease() {
     this.key_code = 0;
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
   }
 
   @HostListener('window:keydown', ['$event'])

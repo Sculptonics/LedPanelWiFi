@@ -21,19 +21,23 @@
                    [disableControl]="isDisabled()"
                    [errorStateMatcher]="matcher">
             <p matTextSuffix="">{{ L.$('секунд') }}</p>
-            <mat-error *ngIf="textIntervalFormControl.hasError('required')">
-              {{ L.$('Поле не может быть пустым!') }}
-            </mat-error>
-            <mat-error *ngIf="textIntervalFormControl.hasError('range') && !textIntervalFormControl.hasError('required')">
-              {{ L.$('не более 64000 секунд') }}
-            </mat-error>
+            @if (textIntervalFormControl.hasError('required')) {
+              <mat-error>
+                {{ L.$('Поле не может быть пустым!') }}
+              </mat-error>
+            }
+            @if (textIntervalFormControl.hasError('range') && !textIntervalFormControl.hasError('required')) {
+              <mat-error>
+                {{ L.$('не более 64000 секунд') }}
+              </mat-error>
+            }
           </mat-form-field>
         </div>
 
         <div style="flex:1"></div>
 
         <div class="action-container" style="margin: 0 6px 0 0;">
-          <button mat-raised-button color="primary" (click)="applyInterval($event)" [disabled]="isDisabled()">{{L.$('Применить')}}</button>
+          <button mat-raised-button color="primary" class="btn_text_param" (click)="applyInterval($event)" [disabled]="isDisabled()">{{L.$('Применить')}}</button>
         </div>
       </div>
 
@@ -46,8 +50,10 @@
         </mat-radio-group>
 
         <div class="select-color">
-          <button mat-raised-button color="primary" (click)="showColorSelector()" [disabled]="isDisabled()">{{L.$('Выбрать цвет')}}</button>
-          <div *ngIf="sample_color_visible" class="sample-color" [style.background-color]="getTextSampleColor()"></div>
+          <button mat-raised-button color="primary" class="btn_text_param" (click)="showColorSelector()" [disabled]="isDisabled()">{{L.$('Выбрать цвет')}}</button>
+          @if (sample_color_visible) {
+            <div class="sample-color" [style.background-color]="getTextSampleColor()"></div>
+          }
         </div>
 
       </div>
@@ -70,7 +76,9 @@
     <fieldset class="app-fieldset texts-fieldset">
       <legend>{{ L.$('Текст бегущей строки') }}</legend>
       <div class="line-container">
-        <button *ngFor="let btn of buttons; let i = index" [matTooltip]="getTextButtonTooltip(i)" [disabled]="isDisabled()" (click)="textAction(i)" [class]="getTextButtonClass(i)">{{btn.label}}</button>
+        @for (btn of buttons; track btn; let i = $index) {
+          <button [matTooltip]="getTextButtonTooltip(i)" [disabled]="isDisabled()" (click)="textAction(i)" [class]="getTextButtonClass(i)">{{btn.label}}</button>
+        }
       </div>
 
       <div class="field-container text">
@@ -85,8 +93,8 @@
                   [matTooltip]="L.$('Очистить текст')">
             {{L.$('Очистить')}}
           </button>
-          <div [matTooltip]="this.managementService.state.isNightClockRunnung() ? L.$('В режиме ночных часов просмотр недоступен') : L.$('Просмотр строки без сохранения')">
-            <button mat-raised-button color="primary" (click)="showText()" [disabled]="isDisabled() || text.value.length == 0 || this.managementService.state.isNightClockRunnung() || this.managementService.state.isDrawingActive()">
+          <div [matTooltip]="getPreviewButtonTooltip()">
+            <button mat-raised-button color="primary" (click)="showText()" [disabled]="isDisabledByIncomeStream() || text.value.length == 0 || this.managementService.state.isDrawingActive()">
               {{L.$('Просмотр')}}
             </button>
           </div>
@@ -99,9 +107,9 @@
 
     </fieldset>
 
-    <fieldset class="app-fieldset texts-fieldset mac" [ngClass]="{'disabled': isDisabled2()}">
+    <fieldset class="app-fieldset texts-fieldset mac">
       <legend>{{ L.$('Макросы бегущей строки') }}</legend>
-      <div class="macros-container">
+      <div class="macros-container" [ngClass]="{'disabled': isDisabled2()}">
         <button [matTooltip]="L.$('Цвет текста')" [disabled]="isDisabled2()" (click)="macrosTextColor()" class="btn">
           <mat-icon matSuffix>palette</mat-icon>
           <span>A</span>
@@ -170,12 +178,16 @@
         <button [matTooltip]="L.$('Формат даты')" [matMenuTriggerFor]="menuDateFormat" [disabled]="isDisabled2()" class="btn">
           <span>dd.MM</span>
         </button>
-        <button *ngIf="managementService.state.supportMP3" [matTooltip]="L.$('Звук в сообщении')" [matMenuTriggerFor]="menuSounds" [disabled]="isDisabled2()" class="btn">
-          <mat-icon matSuffix>audiotrack</mat-icon>
-        </button>
-        <button *ngIf="!managementService.state.supportMP3" [matTooltip]="L.$('Звук в сообщении')" [disabled]="true" class="btn">
-          <mat-icon matSuffix>audiotrack</mat-icon>
-        </button>
+        @if (managementService.state.supportMP3) {
+          <button [matTooltip]="L.$('Звук в сообщении')" [matMenuTriggerFor]="menuSounds" [disabled]="isDisabled2()" class="btn">
+            <mat-icon matSuffix>audiotrack</mat-icon>
+          </button>
+        }
+        @if (!managementService.state.supportMP3) {
+          <button [matTooltip]="L.$('Звук в сообщении')" [disabled]="true" class="btn">
+            <mat-icon matSuffix>audiotrack</mat-icon>
+          </button>
+        }
         <button [matTooltip]="L.$('Радуга')" [disabled]="isDisabled2()" (click)="putMacrosInText('{C#000001}')" class="btn">
           <span class="letter"><span class="r">a</span><span class="g">b</span><span class="y">c</span></span>
         </button>
@@ -183,7 +195,7 @@
           <span class="letter"><span class="b">a</span><span class="y">b</span><span class="m">c</span></span>
         </button>
         <button [matTooltip]="L.$('Отключить строку')" [disabled]="isDisabled2()" (click)="macrosDisableString()" class="btn">
-          <span>{{ '{'}}-}</span>
+          <span>{{ '{'}}-&#125;</span>
         </button>
         <button [matTooltip]="L.$('Период показа строки')" [disabled]="isDisabled2()" (click)="pickerS.open()" class="btn">
           <mat-icon matSuffix>event</mat-icon>
@@ -200,22 +212,75 @@
           </mat-date-range-picker>
         </button>
       </div>
+
+      <div style="flex:1"></div>
+
+      @if (supportWeather) {
+        <div class="macros-ts">
+          <div class="field-container check">
+            <mat-label>{{ L.$('Отображать в макросе \{WT}:') }}</mat-label>
+            <mat-checkbox [checked]="show_degree" color="primary" (change)="setTempShowDegree($event.checked)">
+              {{ L.$('Градус') }}
+            </mat-checkbox>
+            <mat-checkbox [checked]="show_letter" color="primary" (change)="setTempShowLetter($event.checked)">
+              {{ L.$('C/F') }}
+            </mat-checkbox>
+          </div>
+        </div>
+      }
+
+      <div class="import-export">
+        <!--button mat-raised-button color="primary" class="btn"
+                matTooltip="{{L.$('Импорт текстовых строк')}}"
+                [disabled]="isDisabled()"
+                (click)="importTexts()">
+          <mat-icon matSuffix>file_upload</mat-icon>
+          <span>{{L.$('Импорт')}}</span>
+        </button-->
+
+        <div class="like-btn" matTooltip="{{L.$('Импорт текстовых строк')}}">
+          <label class="btn btn-default mat-button">
+            <mat-icon matSuffix>publish</mat-icon>
+            <span>{{L.$('Импорт')}}</span>
+            <form #uploadFileForm>
+              <input name="file" type="file" style="display: none;" ng2FileSelect [uploader]="fileUploaderWrapper.getUploader()" (onFileSelected)="onUpload()" accept=".txt">
+            </form>
+          </label>
+        </div>
+
+        <button mat-raised-button color="primary" class="btn"
+                matTooltip="{{L.$('Экспорт текстовых строк')}}"
+                [disabled]="isDisabled()"
+                (click)="exportTexts()">
+          <mat-icon matSuffix>file_download</mat-icon>
+          <span>{{L.$('Экспорт')}}</span>
+        </button>
+      </div>
     </fieldset>
 
+
     <mat-menu #menuDateFormat="matMenu">
-      <button *ngFor="let item of date_fmt" (click)="putMacrosInText(item.value)" mat-menu-item>{{item.displayText}}</button>
+      @for (item of date_fmt; track item) {
+        <button (click)="putMacrosInText(item.value)" mat-menu-item>{{item.displayText}}</button>
+      }
     </mat-menu>
 
     <mat-menu #menuEffect="matMenu">
-      <button *ngFor="let item of managementService.effects" (click)="putEffect(item.id)" mat-menu-item>{{item.name}}</button>
+      @for (item of managementService.effects; track item) {
+        <button (click)="putEffect(item.id)" mat-menu-item>{{item.name}}</button>
+      }
     </mat-menu>
 
     <mat-menu #menuSounds="matMenu">
-      <button *ngFor="let item of managementService.notify_sounds" (click)="putNotifySound(item.value)" mat-menu-item>{{item.displayText}}</button>
+      @for (item of managementService.notify_sounds; track item) {
+        <button (click)="putNotifySound(item.value)" mat-menu-item>{{item.displayText}}</button>
+      }
     </mat-menu>
 
     <mat-menu #menuLineNumber="matMenu">
-      <button *ngFor="let item of filterButtons()" (click)="linkToLine(item.label)" mat-menu-item>{{getLineText(item.index)}}</button>
+      @for (item of filterButtons(); track item) {
+        <button (click)="linkToLine(item.label)" mat-menu-item>{{getLineText(item.index)}}</button>
+      }
     </mat-menu>
 
     <div style="height: 54px">&nbsp;</div>

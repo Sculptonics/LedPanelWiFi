@@ -2,7 +2,9 @@
 
 // шрифт 5х7
 const uint8_t font5x7[][5] PROGMEM = {
-  {0x3e, 0x51, 0x49, 0x45, 0x3e}, // 0 0x30 48
+  // Вариант 1.
+//{0x3e, 0x51, 0x49, 0x45, 0x3e}, // 0 0x30 48 - 0 перечеркнутый
+  {0x3E, 0x41, 0x41, 0x41, 0x3E}, // 0 0x30 48 - 0 круглый
   {0x00, 0x42, 0x7f, 0x40, 0x00}, // 1 0x31 49
   {0x42, 0x61, 0x51, 0x49, 0x46}, // 2 0x32 50
   {0x21, 0x41, 0x45, 0x4b, 0x31}, // 3 0x33 51
@@ -12,41 +14,72 @@ const uint8_t font5x7[][5] PROGMEM = {
   {0x01, 0x71, 0x09, 0x05, 0x03}, // 7 0x37 55
   {0x36, 0x49, 0x49, 0x49, 0x36}, // 8 0x38 56
   {0x06, 0x49, 0x49, 0x29, 0x1e}, // 9 0x39 57
+  // Вариант 2                                  //  В папке проекта tools есть утилита FontMaker.
+//{0x3E, 0x41, 0x41, 0x41, 0x3E}, // 0 0x30 48  //  С её помошью можно отредактировать начертания цифр по вашему вкусу.
+//{0x00, 0x42, 0x7f, 0x40, 0x00}, // 1 0x31 49
+//{0x42, 0x61, 0x51, 0x49, 0x46}, // 2 0x32 50
+//{0x21, 0x41, 0x49, 0x4d, 0x37}, // 3 0x33 51
+//{0x0F, 0x10, 0x10, 0x7F, 0x10}, // 4 0x34 52
+//{0x47, 0x49, 0x49, 0x49, 0x31}, // 5 0x35 53
+//{0x3e, 0x41, 0x49, 0x49, 0x30}, // 6 0x36 54
+//{0x01, 0x71, 0x09, 0x05, 0x03}, // 7 0x37 55
+//{0x36, 0x49, 0x49, 0x49, 0x36}, // 8 0x38 56
+//{0x06, 0x49, 0x49, 0x41, 0x3E}, // 9 0x39 57 
 };
 
 // шрифт 3х5 квадратный
 const uint8_t font3x5[][3] PROGMEM = {
-  {0b11111, 0b10001, 0b11111},    // 0
-  {0b00000, 0b11111, 0b00000},    // 1
-  {0b10111, 0b10101, 0b11101},    // 2
-  {0b10101, 0b10101, 0b11111},    // 3
-  {0b11100, 0b00100, 0b11111},    // 4
-  {0b11101, 0b10101, 0b10111},    // 5
-  {0b11111, 0b10101, 0b10111},    // 6
-  {0b10000, 0b10000, 0b11111},    // 7
-  {0b11111, 0b10101, 0b11111},    // 8
-  {0b11101, 0b10101, 0b11111},    // 9
+//{0b11111, 0b10001, 0b11111},    // 0
+//{0b00000, 0b11111, 0b00000},    // 1
+//{0b10111, 0b10101, 0b11101},    // 2
+//{0b10101, 0b10101, 0b11111},    // 3
+//{0b11100, 0b00100, 0b11111},    // 4
+//{0b11101, 0b10101, 0b10111},    // 5
+//{0b11111, 0b10101, 0b10111},    // 6
+//{0b10000, 0b10000, 0b11111},    // 7
+//{0b11111, 0b10101, 0b11111},    // 8
+//{0b11101, 0b10101, 0b11111},    // 9
+  {0x1F, 0x11, 0x1F},             // 0
+  {0x00, 0x1F, 0x00},             // 1
+  {0x17, 0x15, 0x1D},             // 2
+  {0x11, 0x15, 0x1F},             // 3
+  {0x1C, 0x04, 0x1F},             // 4
+  {0x1D, 0x15, 0x17},             // 5
+  {0x1F, 0x15, 0x17},             // 6
+  {0x10, 0x10, 0x1F},             // 7
+  {0x1F, 0x15, 0x1F},             // 8
+  {0x1D, 0x15, 0x1F},             // 9
 };
 
 // шрифт 3х5 скруглённый
 const uint8_t font3x5_s[][3] PROGMEM = {
-  {0b01111, 0b10001, 0b11110},    // 0
-  {0b01000, 0b11111, 0b00000},    // 1
-  {0b10011, 0b10101, 0b01001},    // 2
-  {0b10001, 0b10101, 0b11111},    // 3
-  {0b11100, 0b00100, 0b11111},    // 4
-  {0b11101, 0b10101, 0b10111},    // 5
-  {0b01111, 0b10101, 0b10111},    // 6
-  {0b10000, 0b10011, 0b11100},    // 7
-  {0b11111, 0b10101, 0b11111},    // 8
-  {0b11101, 0b10101, 0b11110},    // 9
+//{0b01111, 0b10001, 0b11110},    // 0
+//{0b01000, 0b11111, 0b00000},    // 1
+//{0b10011, 0b10101, 0b01001},    // 2
+//{0b10001, 0b10101, 0b11111},    // 3
+//{0b11100, 0b00100, 0b11111},    // 4
+//{0b11101, 0b10101, 0b10111},    // 5
+//{0b01111, 0b10101, 0b10111},    // 6
+//{0b10000, 0b10011, 0b11100},    // 7
+//{0b11111, 0b10101, 0b11111},    // 8
+//{0b11101, 0b10101, 0b11110},    // 9
+  {0x0E, 0x11, 0x0E},             // 0
+  {0x08, 0x1F, 0x00},             // 1
+  {0x13, 0x15, 0x09},             // 2
+  {0x11, 0x15, 0x0A},             // 3
+  {0x18, 0x04, 0x1F},             // 4
+  {0x1D, 0x15, 0x16},             // 5
+  {0x0F, 0x15, 0x17},             // 6
+  {0x10, 0x13, 0x1C},             // 7
+  {0x0A, 0x15, 0x0A},             // 8  {0x0F, 0x15, 0x1E}
+  {0x1D, 0x15, 0x1E},             // 9
 };
 
 // отображаем счёт для игр
 void displayScore(uint16_t score) {
   uint8_t score_size = SCORE_SIZE;
   uint8_t score_width = 0, num_one = 0, X = 0, Y = 0;
-  String  str = String(score);
+  String  str(score);
   uint8_t str_len = str.length();
   char c;
 
@@ -80,15 +113,13 @@ void displayScore(uint16_t score) {
       score_width = str_len * 3 + (str_len - 1) - num_one * 2;   // кол-во цифр 3x5 плюс пробелы между цифрами минус коррекция ширины '1'
     }
     
-    if (score_size == 0) {
-      // Позиция начала вывода счета на матрицу
-      X = (pWIDTH - score_width) / 2;
-      Y = pHEIGHT / 2 - 3;
-      for (uint8_t i=0; i<str.length(); i++) {
-        c = str[i];
-        drawDigit3x5((c - '0'), X, Y, GLOBAL_COLOR_2);
-        if (c == '1') X += 2; else X += 4; 
-      }
+    // Позиция начала вывода счета на матрицу
+    X = (pWIDTH - score_width) / 2;
+    Y = pHEIGHT / 2 - 3;
+    for (uint8_t i=0; i<str.length(); i++) {
+      c = str[i];
+      drawDigit3x5((c - '0'), X, Y, GLOBAL_COLOR_2);
+      if (c == '1') X += 2; else X += 4; 
     }
   }
 }
@@ -166,6 +197,7 @@ void drawPixelXY(int8_t x, int8_t y, CRGB color) {
   if (thisPixel >= 0) leds[thisPixel] = color;
 }
 
+/*
 void drawPixelXYF(float x, float y, CRGB color) {
   if (leds == nullptr) return;
   // extract the fractional parts and derive their inverses
@@ -288,6 +320,7 @@ void drawCircleF(float x0, float y0, float radius, CRGB color) {
     --y;
   }
 }
+*/
 
 // получить номер пикселя в ленте по координатам
 int16_t getPixelNumber(int8_t x, int8_t y) {
@@ -485,15 +518,18 @@ void fadePixel(uint8_t i, uint8_t j, uint8_t step) {     // новый фейд�
 }
 
 // hex string to uint32_t
-uint32_t HEXtoInt(String hexValue) {
+uint32_t HEXtoInt(const String& sValue) {
 
+  String hexValue(sValue);
   hexValue.toUpperCase();
   if (hexValue.charAt(0) == '#') {
-    hexValue = hexValue.substring(1);
+    hexValue.replace('#',' ');
+    hexValue.trim();
   }
 
   if (hexValue.startsWith("0X")) {
-    hexValue = hexValue.substring(2);
+    hexValue.replace("0X"," ");
+    hexValue.trim();
   }
 
   uint8_t tens, ones, number1, number2, number3;
@@ -514,7 +550,9 @@ uint32_t HEXtoInt(String hexValue) {
 
 // uint32_t to Hex string
 String IntToHex(uint32_t value) {
-  String sHex = "00000" + String(value, HEX);
+  String sHex("00000");  
+  sHex.reserve(8);
+  sHex += String(value, HEX);
   uint8_t len = sHex.length();
   if (len > 6) {
     sHex = sHex.substring(len - 6);
@@ -524,7 +562,8 @@ String IntToHex(uint32_t value) {
 }
 
 String IntToHex(uint32_t value, uint8_t n) {
-  String sHex = "";
+  String sHex;
+  sHex.reserve(8);
   for(uint8_t i=0; i<n; i++) sHex += "0";
   sHex += String(value, HEX);
   uint8_t len = sHex.length();
@@ -535,27 +574,31 @@ String IntToHex(uint32_t value, uint8_t n) {
   return sHex;
 }
 
-uint32_t CountTokens(String &str, char separator) {
+uint32_t CountTokens(const String &str, char separator) {
 
   uint32_t count = 0;
   int16_t  pos = 0;
-  String   l_str = str;
+  String l_str(str);
 
   l_str.trim();
+  
   if (l_str.length() <= 0) return 0;
   pos = l_str.indexOf(separator);
+  
   while (pos >= 0) {
     count++;
     pos = l_str.indexOf(separator, pos + 1);
   }
+  
   return ++count;
 }
 
-String GetToken(String &str, uint32_t index, char separator) {
+String GetToken(const String& str, uint32_t index, char separator) {
 
   uint32_t count = CountTokens(str, separator);
 
-  if (count <= 1 || index < 1 || index > count) return str;
+  if (index < 1 || index > count) return str;
+  if (count == 1) return str;
 
   uint32_t pos_start = 0;
   uint32_t pos_end = str.length();
@@ -572,6 +615,7 @@ String GetToken(String &str, uint32_t index, char separator) {
       }
     }
   }
+  
   return str.substring(pos_start, pos_end);
 }
 
@@ -582,87 +626,92 @@ uint32_t getColorInt(CRGB color) {
 // Вычисление значения яркости эффектов по отношению к общей яркости
 // Общая яркость регулируется через FastLED.setBrightness(); 
 // Вычисленная яркость эффекта влияет на компонент яркости V в модели HCSV
-uint8_t getBrightnessCalculated(uint8_t brightness, uint8_t contrast) {
+uint8_t getBrightnessCalculated([[maybe_unused]] uint8_t brightness, uint8_t contrast) {
   // В данном варианте общая яркость не учитывается в расчете
   return map8(contrast, 16, 255);
 }
 
 String getMonthString(uint8_t month) {
-  String sMnth = "";
+  String sMnth;
   switch (month) {
-    case  1: sMnth = SMonth_01; break;
-    case  2: sMnth = SMonth_02; break;
-    case  3: sMnth = SMonth_03; break;
-    case  4: sMnth = SMonth_04; break;
-    case  5: sMnth = SMonth_05; break;
-    case  6: sMnth = SMonth_06; break;
-    case  7: sMnth = SMonth_07; break;
-    case  8: sMnth = SMonth_08; break;
-    case  9: sMnth = SMonth_09; break;
-    case 10: sMnth = SMonth_10; break;
-    case 11: sMnth = SMonth_11; break;
-    case 12: sMnth = SMonth_12; break;
+    case  1: sMnth = FPSTR(SMonth_01); break;
+    case  2: sMnth = FPSTR(SMonth_02); break;
+    case  3: sMnth = FPSTR(SMonth_03); break;
+    case  4: sMnth = FPSTR(SMonth_04); break;
+    case  5: sMnth = FPSTR(SMonth_05); break;
+    case  6: sMnth = FPSTR(SMonth_06); break;
+    case  7: sMnth = FPSTR(SMonth_07); break;
+    case  8: sMnth = FPSTR(SMonth_08); break;
+    case  9: sMnth = FPSTR(SMonth_09); break;
+    case 10: sMnth = FPSTR(SMonth_10); break;
+    case 11: sMnth = FPSTR(SMonth_11); break;
+    case 12: sMnth = FPSTR(SMonth_12); break;
+    default: sMnth = "";                break;
   }  
   return sMnth;
 }
 
 String getMonthShortString(uint8_t month) {
-  String sMnth = "";
+  String sMnth;
   switch (month) {
-    case  1: sMnth = SMnth_01; break;
-    case  2: sMnth = SMnth_02; break;
-    case  3: sMnth = SMnth_03; break;
-    case  4: sMnth = SMnth_04; break;
-    case  5: sMnth = SMnth_05; break;
-    case  6: sMnth = SMnth_06; break;
-    case  7: sMnth = SMnth_07; break;
-    case  8: sMnth = SMnth_08; break;
-    case  9: sMnth = SMnth_09; break;
-    case 10: sMnth = SMnth_10; break;
-    case 11: sMnth = SMnth_11; break;
-    case 12: sMnth = SMnth_12; break;
+    case  1: sMnth = FPSTR(SMnth_01); break;
+    case  2: sMnth = FPSTR(SMnth_02); break;
+    case  3: sMnth = FPSTR(SMnth_03); break;
+    case  4: sMnth = FPSTR(SMnth_04); break;
+    case  5: sMnth = FPSTR(SMnth_05); break;
+    case  6: sMnth = FPSTR(SMnth_06); break;
+    case  7: sMnth = FPSTR(SMnth_07); break;
+    case  8: sMnth = FPSTR(SMnth_08); break;
+    case  9: sMnth = FPSTR(SMnth_09); break;
+    case 10: sMnth = FPSTR(SMnth_10); break;
+    case 11: sMnth = FPSTR(SMnth_11); break;
+    case 12: sMnth = FPSTR(SMnth_12); break;
+    default: sMnth = "";               break;
   }  
   return sMnth;
 }
 
 String getWeekdayString(uint8_t wd) {
-  String str = "";
+  String str;
   switch (wd) {
-    case  1: str = SDayFull_1; break;
-    case  2: str = SDayFull_2; break;
-    case  3: str = SDayFull_3; break;
-    case  4: str = SDayFull_4; break;
-    case  5: str = SDayFull_5; break;
-    case  6: str = SDayFull_6; break;
-    case  7: str = SDayFull_7; break;
+    case  1: str = FPSTR(SDayFull_1); break;
+    case  2: str = FPSTR(SDayFull_2); break;
+    case  3: str = FPSTR(SDayFull_3); break;
+    case  4: str = FPSTR(SDayFull_4); break;
+    case  5: str = FPSTR(SDayFull_5); break;
+    case  6: str = FPSTR(SDayFull_6); break;
+    case  7: str = FPSTR(SDayFull_7); break;
+    default: str = "";                 break;
   }  
   return str;
 }
 
 String getWeekdayShortString(uint8_t wd) {
-  String str = "";
+  String str;
   switch (wd) {
-    case  1: str = SDayShort_1; break;
-    case  2: str = SDayShort_2; break;
-    case  3: str = SDayShort_3; break;
-    case  4: str = SDayShort_4; break;
-    case  5: str = SDayShort_5; break;
-    case  6: str = SDayShort_6; break;
-    case  7: str = SDayShort_7; break;
+    case  1: str = FPSTR(SDayShort_1); break;
+    case  2: str = FPSTR(SDayShort_2); break;
+    case  3: str = FPSTR(SDayShort_3); break;
+    case  4: str = FPSTR(SDayShort_4); break;
+    case  5: str = FPSTR(SDayShort_5); break;
+    case  6: str = FPSTR(SDayShort_6); break;
+    case  7: str = FPSTR(SDayShort_7); break;
+    default: str = "";                  break;
   }  
   return str;
 }
 
 String getWeekdayShortShortString(uint8_t wd) {
-  String str = "";
+  String str;
   switch (wd) {
-    case  1: str = SDayShrt_1; break;
-    case  2: str = SDayShrt_2; break;
-    case  3: str = SDayShrt_3; break;
-    case  4: str = SDayShrt_4; break;
-    case  5: str = SDayShrt_5; break;
-    case  6: str = SDayShrt_6; break;
-    case  7: str = SDayShrt_7; break;
+    case  1: str = FPSTR(SDayShrt_1); break;
+    case  2: str = FPSTR(SDayShrt_2); break;
+    case  3: str = FPSTR(SDayShrt_3); break;
+    case  4: str = FPSTR(SDayShrt_4); break;
+    case  5: str = FPSTR(SDayShrt_5); break;
+    case  6: str = FPSTR(SDayShrt_6); break;
+    case  7: str = FPSTR(SDayShrt_7); break;
+    default: str = "";                 break;
   }  
   return str;
 }
@@ -672,32 +721,32 @@ String getWeekdayShortShortString(uint8_t wd) {
 String WriteDays(uint16_t iDays) {
   uint16_t iDays2 = (iDays / 10) % 10;
   iDays = iDays %10;
-  if (iDays2 == 1) return SDayForm_1;                 // F(" дней")
-  if (iDays  == 1) return SDayForm_2;                 // F(" день")
-  if (iDays  >= 2 && iDays <= 4) return SDayForm_3;   // F(" дня") 
-  return SDayForm_1;                                  // F(" дней")
+  if (iDays2 == 1) return FPSTR(SDayForm_1);                        // F(" дней")
+  if (iDays  == 1) return FPSTR(SDayForm_2);                        // F(" день")
+  if (iDays  >= 2 && iDays <= 4) return FPSTR(SDayForm_3);          // F(" дня") 
+  return FPSTR(SDayForm_1);                                         // F(" дней")
 }
 
 String WriteHours(uint8_t iHours) {
-  if (iHours == 1 || iHours == 21) return SHourForm_1;                                     // F(" час")
-  if ((iHours >= 2 && iHours <= 4) || (iHours >= 22 && iHours <= 24))return SHourForm_2;   // F(" часа")
-  return SHourForm_3;                                                                      // F(" часов")
+  if (iHours == 1 || iHours == 21) return FPSTR(SHourForm_1);                                     // F(" час")
+  if ((iHours >= 2 && iHours <= 4) || (iHours >= 22 && iHours <= 24))return FPSTR(SHourForm_2);   // F(" часа")
+  return FPSTR(SHourForm_3);                                                                      // F(" часов")
 }
 
 String WriteMinutes(uint8_t iMinutes){
-  if (iMinutes >= 5 && iMinutes <= 20) return SMinuteForm_1;  // F(" минут")
+  if (iMinutes >= 5 && iMinutes <= 20) return FPSTR(SMinuteForm_1);  // F(" минут")
   iMinutes = iMinutes %10; 
-  if (iMinutes == 1) return SMinuteForm_2;                    // F(" минута")
-  if (iMinutes >= 2 && iMinutes <= 4) return SMinuteForm_3;   // F(" минуты")
-  return SMinuteForm_1;                                       // F(" минут")
+  if (iMinutes == 1) return FPSTR(SMinuteForm_2);                    // F(" минута")
+  if (iMinutes >= 2 && iMinutes <= 4) return FPSTR(SMinuteForm_3);   // F(" минуты")
+  return FPSTR(SMinuteForm_1);                                       // F(" минут")
 }
 
 String WriteSeconds(uint8_t iSeconds){
-  if (iSeconds >= 5 && iSeconds <= 20) return SSecondForm_1;  // F(" секунд")
+  if (iSeconds >= 5 && iSeconds <= 20) return FPSTR(SSecondForm_1);  // F(" секунд")
   iSeconds = iSeconds %10;
-  if (iSeconds == 1) return SSecondForm_2;                    // F(" секунда")
-  if (iSeconds >= 2 && iSeconds <= 4) return SSecondForm_3;   // F(" секунды")
-  return SSecondForm_1;                                       // F(" секунд")
+  if (iSeconds == 1) return FPSTR(SSecondForm_2);                    // F(" секунда")
+  if (iSeconds >= 2 && iSeconds <= 4) return FPSTR(SSecondForm_3);   // F(" секунды")
+  return FPSTR(SSecondForm_1);                                       // F(" секунд")
 }
 
 // ------------------------- CRC16 -------------------------
@@ -732,6 +781,11 @@ uint16_t getCrc16(uint8_t * data, uint16_t len)
     }
  
     return crc.value;
+}
+
+uint8_t getCrc8(uint8_t * data, uint16_t len) {
+  uint16_t crc16 = getCrc16(data, len);
+  return (uint8_t)(((crc16 & 0xff) ^ ((crc16 >> 8) & 0xff)) & 0xff);
 }
 
 uint8_t wrapX(int8_t x) {
@@ -769,7 +823,7 @@ void shiftDiag() {
   }
 }
 
-String padRight(String &str, uint8_t cnt) {
+String padRight(const String &str, uint8_t cnt) {
   uint16_t len = str.length();
   if (len >= cnt) return str;
   char data[cnt + 1];
@@ -780,7 +834,7 @@ String padRight(String &str, uint8_t cnt) {
   return String(data);
 }
 
-String padLeft(String &str, uint8_t cnt) {
+String padLeft(const String &str, uint8_t cnt) {
   uint16_t len = str.length();
   if (len >= cnt) return str;
   char data[cnt + 1];
@@ -792,7 +846,7 @@ String padLeft(String &str, uint8_t cnt) {
 
 String padNum(int16_t num, uint8_t cnt) {
   char data[12];
-  String fmt = "%0" + String(cnt) + 'd';
+  String fmt("%0"); fmt += cnt; fmt += 'd';
   sprintf(data, fmt.c_str(), num);
   return String(data);
 }
@@ -804,234 +858,162 @@ String getDateTimeString(time_t t) {
   uint8_t dy = day(t);
   uint8_t mh = month(t);
   uint16_t yr = year(t);
-  return padNum(dy,2) + '.' + padNum(mh,2) + '.' + padNum(yr,4) + ' ' + padNum(hr,2) + ':' + padNum(mn,2) + ':' + padNum(sc,2);  
-}
-
-// leap year calulator expects year argument as years offset from 1970
-bool LEAP_YEAR(uint16_t Y) {
-  return ((1970+(Y))>0) && !((1970+(Y))%4) && ( ((1970+(Y))%100) || !((1970+(Y))%400) );
+  String str(padNum(dy,2)); 
+  str += '.'; 
+  str += padNum(mh,2); 
+  str += '.'; 
+  str += padNum(yr,4); 
+  str += ' '; 
+  str += padNum(hr,2); 
+  str += ':'; 
+  str += padNum(mn,2); 
+  str += ':'; 
+  str += padNum(sc,2);  
+  return str;
 }
 
 // ------------------------ Отправка значений в WEB ------------------------
 
-void notifyUnknownCommand(const char* text, eSources source) {  
-  if (source == WEB || source == BOTH) {
-    String out;
-    doc.clear();
-    doc["message"] = F("unknown command");
-    doc["text"]    = String(F("неизвестная команда '")) + String(text) +'\'';
-    serializeJson(doc, out);      
-    if (source == WEB  || source == BOTH) SendWeb(out, TOPIC_ERR);
-  }
-}
-
-bool hasBigSizeKey(String keys) {
-  // Значеня для этих ключей - большого размера.
-  // Это спиский эффектов, файлов, музыки и т.д.
-  // Для формирования ответа по одному из этих ключей требуется выделений буфера достаточного размера, больше чем для других
-  return 
-    keys.indexOf("IC") >= 0 || 
-    keys.indexOf("IR") >= 0 || 
-    keys.indexOf("LE") >= 0 || 
-    keys.indexOf("LF") >= 0 || 
-    keys.indexOf("S1") >= 0 || 
-    keys.indexOf("S2") >= 0 || 
-    keys.indexOf("S3") >= 0 || 
-    keys.indexOf("SQ") >= 0 || 
-    keys.indexOf("TY") >= 0 || 
-    keys.startsWith("FL");  
-}
-
-bool isBigSizeKey(String key) {
-  // Значеня для этих ключей - большого размера.
-  // Это спиский эффектов, файлов, музыки и т.д.
-  // Для формирования ответа по одному из этих ключей требуется выделений буфера достаточного размера, больше чем для других
-  return key == "IC" || key == "IR" || key == "LE" || key == "LF" || key == "S1" || key == "S2" || key == "S3" || key == "SQ" || key == "TY" || key.startsWith("FL");  
+void notifyUnknownCommand(const String& text) {  
+  
+  String tmp(F("неизвестная команда '"));
+  tmp += text; tmp += '\'';    
+  SendWeb(tmp, TOPIC_ERR);
 }
 
 // Отправка в WEB канал - текущие значения переменных
-void SendCurrentState(String keys, String topic, eSources src) {
+void SendCurrentState(String& keys) {
 
-  if (keys[0] == '|') keys = keys.substring(1);
-  if (keys[keys.length() - 1] == '|') keys = keys.substring(0, keys.length()-1);
+  // Эта функция SendCurrentState() вызывается из одного места, после вызова стрка changed_keys, передаваемая сюда по адресу обнуляется
+  // Поэтому мы можем не создавать ноаве копии строки, а изменять ее каа нам нужно тут - все равно по вызоде из функции она будет обнклена
+  // Если строка начинается с '|' - удалить начальный '|'
+  // Если строка заканчивается с '|' - удалить последний '|'
+  if (keys.charAt(0) == '|') keys.setCharAt(0,' ');
+  if (keys.charAt(keys.length() - 1) == '|') keys.setCharAt(keys.length() - 1, ' ');
+  keys.trim();
     
-  JsonVariant value;
-
-  String out, key, s_tmp;
-  bool big_size_key, retain;
   int16_t pos_start = 0;
   int16_t pos_end = keys.indexOf('|', pos_start);
   int16_t len = keys.length();
   if (pos_end < 0) pos_end = len;
+
+  String key; key.reserve(6);
+  String s_tmp; s_tmp.reserve(OUT_CMD_SIZE);
    
   // Строка keys содержит ключи запрашиваемых данных, разделенных знаком '|', например "CE|CC|CO|CK|NC|SC|C1|DC|DD|DI|NP|NT|NZ|NS|DW|OF"
   while (pos_start < len && pos_end >= pos_start) {
     if (pos_end > pos_start) {      
       key = keys.substring(pos_start, pos_end);
-      // Все значения состояния кроме UpTime ("UP") отправляются с retain == true;
-      retain = key != "UP";
       if (key.length() > 0) {
-        value_doc.clear();
-        value = value_doc.to<JsonVariant>();
-        s_tmp = getStateValue(key, thisMode, &value);
-        // Если режим отправки сообщений - каждый параметр индивидуально или ключ имеет значение большой длины - отправить полученный параметр отдельным сообщением  
-        // Параметр "UP" также всегда отправляется отдельным сообщением
-        big_size_key = isBigSizeKey(key);
-        // Топик сообщения - основной топик плюс ключ (имя параметра)
-        if (big_size_key) {
-          out = s_tmp;
-        } else {
-          out = value.isNull() ? "" : value.as<String>();
-        }
-        // Web message sample in topic 'stt' --> topic = 'stt'; value = 'key=value'
-        if (src == WEB || src == BOTH) {
-          SendWebKey(key, out);            
-        }
+        s_tmp = getStateValue(key, thisMode, true);
+        SendWebKey(key, s_tmp);
       }      
     }
-    delay(1);
+    yield();
     pos_start = pos_end + 1;
     pos_end = keys.indexOf('|', pos_start);
     if (pos_end < 0) pos_end = len;
   }
 }
 
-// Получение строки пары ключ-значение в формате json;
-String getKVP(String &key, JsonVariant &value) {
-  String out;
-  doc.clear();
-  doc[key] = value;
-  serializeJson(doc, out);
-  return out;  
-}
-
-void allocateLeds() {
-  int32_t freeMemory1 = ESP.getFreeHeap();
-  int32_t requireMemory = NUM_LEDS * sizeof(CRGB);
-  if (leds == nullptr && freeMemory1 <= requireMemory) {
-     DEBUGLN(String(F("Недостаточно памяти для LEDS: нужно ")) + String(requireMemory) + String(F(" байт")) + String(F(" есть ")) + String(freeMemory1) + String(F(" байт")));
-     return;
-  }
-  DEBUG(F("Выделение памяти для LEDS   : "));
-  leds =  new CRGB[NUM_LEDS];            
-
-  //FastLED.addLeds<LED_CHIP, D2, COLOR_ORDER>(leds, 256).setCorrection( TypicalLEDStrip );
-  //FastLED.addLeds<LED_CHIP, D3, COLOR_ORDER>(leds, 256, 256).setCorrection( TypicalLEDStrip );
-
-  if (leds != NULL) {
-    FOR_i(1, 4) {
-      // К сожалению функция FastLED.addLeds() в качестве чипсета, пина подключения и порядка цвета принимает только константы времени компиляции
-      // Эти параметры не могут быть заданы переменными. ТО есть настройка LED_CHIP и COLOR_ORDER - в файле a_def_hard.h, LED_PIN - из переменной, но в switch - в каждую строку подставлена константа
-      
-      bool     isLineUsed = getLedLineUsage(i);
-      int8_t   led_pin = getLedLinePin(i);
-      int16_t  led_start = getLedLineStartIndex(i);
-      int16_t  led_count = getLedLineLength(i);
-
-      if (led_start + led_count > NUM_LEDS) {
-        led_count = NUM_LEDS - led_start;
-      }
-
-      isLineUsed &= led_pin >= 0 && led_start >= 0 && led_start < NUM_LEDS && led_count > 0 && led_start <= NUM_LEDS;
-      
-      if (isLineUsed) {
-        #if defined(ESP8266) 
-          // Для NodeMCU и Wemos d1 mini для подключения доступны следующие пины: Dx (GPIO)
-          // D0(16), D1(5), D2(4), D3(0), D4(2), D5(14), D6(12), D7(13), D8(15), D9/RX(3), D10/TX(1)
-          // D5-D8 - работают, но это аппаратные SPI, которые использует SD-карта 
-          // D9/RX, D10/TX - RX/TX - если включен отладочный вывод в COM-порт - лента работать не будет
-          switch (led_pin) {
-//            case 16: /* D0     */ FastLED.addLeds<LED_CHIP, D0, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case  5: /* D1     */ FastLED.addLeds<LED_CHIP, D1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  4: /* D2     */ FastLED.addLeds<LED_CHIP, 4 , COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case  0: /* D3     */ FastLED.addLeds<LED_CHIP, D3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case  2: /* D4     */ FastLED.addLeds<LED_CHIP, D4, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case 14: /* D5     */ FastLED.addLeds<LED_CHIP, D5, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case 12: /* D6     */ FastLED.addLeds<LED_CHIP, D6, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case 13: /* D7     */ FastLED.addLeds<LED_CHIP, D7, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case 15: /* D8     */ FastLED.addLeds<LED_CHIP, D8, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-//            case  3: /* D9/RX  */ FastLED.addLeds<LED_CHIP,  3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для Wemos определены константы RX(3) и TX(1), но не определены D9 И  D10; 
-//            case  1: /* D10/TX */ FastLED.addLeds<LED_CHIP,  1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; // Для NodeMCU определены константы D9(3) и D10(1), но не определены RX И  TX; 
-           }
-        #endif
-        #if defined(ESP32) 
-          // Для ESP32 безопасное подключение ленты к следующим пинам GPIO:
-          // 0,1,2,3,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33
-          // 1/TX, 3/RX - - если включен отладочный вывод в COM-порт - лента работать не будет 
-          // 21/SDA, 22/SCL - шина I2С - предпостительна для использования TM1637
-          switch (led_pin) {
-            case  0: FastLED.addLeds<LED_CHIP,  0, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  1: FastLED.addLeds<LED_CHIP,  1, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  2: FastLED.addLeds<LED_CHIP,  2, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  3: FastLED.addLeds<LED_CHIP,  3, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  4: FastLED.addLeds<LED_CHIP,  4, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case  5: FastLED.addLeds<LED_CHIP,  5, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 12: FastLED.addLeds<LED_CHIP, 12, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 13: FastLED.addLeds<LED_CHIP, 13, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 14: FastLED.addLeds<LED_CHIP, 14, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 15: FastLED.addLeds<LED_CHIP, 15, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 16: FastLED.addLeds<LED_CHIP, 16, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 17: FastLED.addLeds<LED_CHIP, 17, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 18: FastLED.addLeds<LED_CHIP, 18, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 19: FastLED.addLeds<LED_CHIP, 19, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break; 
-            case 21: FastLED.addLeds<LED_CHIP, 21, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 22: FastLED.addLeds<LED_CHIP, 22, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 23: FastLED.addLeds<LED_CHIP, 23, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 25: FastLED.addLeds<LED_CHIP, 25, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 26: FastLED.addLeds<LED_CHIP, 26, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 27: FastLED.addLeds<LED_CHIP, 27, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 32: FastLED.addLeds<LED_CHIP, 32, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-            case 33: FastLED.addLeds<LED_CHIP, 33, COLOR_ORDER>(leds, led_start, led_count).setCorrection( TypicalLEDStrip ); break;
-          }
-        #endif
-      }
+String pinName(int8_t pin) {
+  #if defined(ESP8266) 
+    switch (pin) {
+      case 16: return String(F("D0")); /* D0     */
+      case  5: return String(F("D1")); /* D1     */ 
+      case  4: return String(F("D2")); /* D2     */ 
+      case  0: return String(F("D3")); /* D3     */ 
+      case  2: return String(F("D4")); /* D4     */ 
+      case 14: return String(F("D5")); /* D5     */ 
+      case 12: return String(F("D6")); /* D6     */ 
+      case 13: return String(F("D7")); /* D7     */ 
+      case 15: return String(F("D8")); /* D8     */ 
+      #if defined(RX)
+      case  3: return String(F("RX")); /* D9/RX  */ 
+      case  1: return String(F("TX")); /* D10/TX */ 
+      #else
+      case  3: return String(F("D9")); /* D9/RX  */ 
+      case  1: return String(F("D10"));/* D10/TX */ 
+      #endif
+      default: return String("N/A");
+     }
+  #endif
+  #if defined(ESP32) 
+    // Для ESP32 безопасное подключение ленты к следующим пинам GPIO:
+    // 1,2,3,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27
+    // 1/TX, 3/RX - если включен отладочный вывод в COM-порт - лента работать не будет 
+    // 21/SDA, 22/SCL - шина I2С - предпочтительна для использования TM1637
+    String str; 
+    if (pin >=0) {
+      str += F("G");
+      str += pin;
+    } else {
+      str += F("N/A");
     }
+    return str;
+  #else  
+    return String(F("N/A"));
+  #endif
+}
+
+void InitializeQueues() {
+  // cmdQueue - массив строк. Каждое присвоение элементу массива строки входящей команды приводит к выделению
+  // памяти под строку в Heap, если длина строки помещаемой в элемент очереди больше уже выделенного размера буфера.
+  // Память не используется повторно, а выделяется заново в новом участке. Это приводит к фрагментации Heap и
+  // невозможности выделить большой целый кусок памяти из-за фрагментации
+  // Попытка - изначально зарезервировать память под массив очереди строк входящих команд
+  // Если новая команда (длина строки) менее зарезервированной - будет использован тот же кусок памяти без выделения нового
+  // Это позволит избежать излишней фрагментации
+  if (isQueueInitialized) return;
+  
+  int32_t mem_prv, mem_now;
+  isQueueInitialized = true;
+  mem_prv = ESP.getFreeHeap();
+
+  changed_keys.reserve(90);
+
+  for (uint8_t i = 0; i < QSIZE_IN; i++) {
+    cmdQueue[i].reserve(IN_CMD_SIZE);
   }
-  int32_t freeMemory2 = ESP.getFreeHeap();
-  int32_t freeMemory3 = freeMemory1 - freeMemory2;
-  if (freeMemory3 == 0) restartGuard++;
-  else restartGuard = 0;
-  DEBUGLN(String(freeMemory1) + String(F(" -> ")) + String(freeMemory2) +  String(F(" -- ")) + String(freeMemory3));
+  
+  mem_now = ESP.getFreeHeap();
+  printMemoryDiff(mem_prv, mem_now, F("Резервирование памяти под очередь сообщений:"));
 }
 
-void allocateOverlay() {
-  int32_t freeMemory1 = ESP.getFreeHeap();
-  int32_t requireMemory = OVERLAY_SIZE * sizeof(CRGB);
-  if (overlayLEDs == nullptr && freeMemory1 <= requireMemory) {
-     DEBUGLN(String(F("Недостаточно памяти для OVERLAY: нужно ")) + String(requireMemory) + String(F(" байт")) + String(F(" есть ")) + String(freeMemory1) + String(F(" байт")));
-     return;
-  }
-  DEBUG(F("Выделение памяти для OVERLAY: "));
-  overlayLEDs = new CRGB[OVERLAY_SIZE]; 
-  int32_t freeMemory2 = ESP.getFreeHeap();
-  int32_t freeMemory3 = freeMemory1 - freeMemory2;
-  if (freeMemory3 == 0) restartGuard++;
-  else restartGuard = 0;
-  DEBUGLN(String(freeMemory1) + String(F(" -> ")) + String(freeMemory2) +  String(F(" -- ")) + String(freeMemory3));
+void printMemoryDiff(uint32_t mem_prv, uint32_t mem_now, const String& message) {
+  DEBUGLN(DELIM_LINE);
+  DEBUGLN(message);
+  DEBUG(mem_prv); DEBUG(" - "); DEBUG(mem_now); DEBUG(" -> ");  DEBUGLN(mem_prv - mem_now);
+  printMemoryInfo();
+  DEBUGLN(DELIM_LINE);        
 }
 
-void freeLeds() {
-  if (leds == nullptr) return;
-  int32_t freeMemory1 = ESP.getFreeHeap();
-  DEBUG(String(F("Освобождение памяти для LEDS: ")));
-  delete[] leds;
-  leds = nullptr;
-  int32_t freeMemory2 = ESP.getFreeHeap();
-  DEBUGLN(String(freeMemory1) + String(F(" -> ")) + String(freeMemory2) +  String(F(" -- ")) + String(freeMemory2 - freeMemory1));
-}
-
-void freeOverlay() {
-  if (overlayLEDs == nullptr) return;
-  int32_t freeMemory1 = ESP.getFreeHeap();
-  DEBUG(String(F("Освобождение памяти для OVERLAY: ")));
-  delete[] overlayLEDs;
-  overlayLEDs = nullptr;
-  int32_t freeMemory2 = ESP.getFreeHeap();
-  DEBUGLN(String(freeMemory1) + String(F(" -> ")) + String(freeMemory2) +  String(F(" -- ")) + String(freeMemory2 - freeMemory1));
+void printMemoryInfo() {
+  
+  uint32_t memFree;
+  uint32_t memMaxBlock;
+  
+  #if defined(ESP8266)
+    uint8_t  memFrag;
+    ESP.getHeapStats(&memFree, &memMaxBlock, &memFrag);
+  #else
+    memFree = ESP.getFreeHeap();
+    memMaxBlock = ESP.getMaxAllocHeap();
+  #endif     
+  
+  DEBUG(F("FM: "));
+  DEBUG(memFree);
+  DEBUG(F("  Max: ")); 
+  DEBUG(memMaxBlock); 
+  #if defined(ESP8266)
+  DEBUG(F("  Frag: ")); DEBUG(memFrag);
+  #endif     
+    
+  DEBUGLN();               
 }
 
 String MCUType() {
-  String mcType = F("Unknown");
+  String mcType(F("Unknown"));
   #if defined(ESP8266)
     // LED_BUILTIN_AUX определен только для "NodeMCU"
     #if defined(LED_BUILTIN_AUX)
@@ -1041,39 +1023,80 @@ String MCUType() {
     #endif
   #endif
   #if defined(ESP32)
-    mcType = F("ESP32");
+    #if defined(CONFIG_IDF_TARGET_ESP32S2)
+      mcType = F("ESP32 S2");
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+      mcType = F("ESP32 S3");
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+      mcType = F("ESP32 C3");
+    #else
+      mcType = F("ESP32");
+    #endif
   #endif  
   return mcType;
 }
 
-String pinName(uint8_t pin) {
-  #if defined(ESP8266) 
-    switch (pin) {
-      case 16: return F("D0"); /* D0     */
-      case  5: return F("D1"); /* D1     */ 
-      case  4: return F("D2"); /* D2     */ 
-      case  0: return F("D3"); /* D3     */ 
-      case  2: return F("D4"); /* D4     */ 
-      case 14: return F("D5"); /* D5     */ 
-      case 12: return F("D6"); /* D6     */ 
-      case 13: return F("D7"); /* D7     */ 
-      case 15: return F("D8"); /* D8     */ 
-      #if defined(RX)
-      case  3: return F("RX"); /* D9/RX  */ 
-      case  1: return F("TX"); /* D10/TX */ 
+String MCUTypeEx() {
+  
+  // ESP32 поддерживается следующих версий (и у всех у них свой набор доступных пинови их назначение по GPIO):
+  // ESP32                   https://github.com/espressif/arduino-esp32/blob/master/variants/esp32/pins_arduino.h
+  // ESP32-S2                https://github.com/espressif/arduino-esp32/blob/master/variants/esp32s2/pins_arduino.h
+  // ESP32-S2-mini           https://github.com/espressif/arduino-esp32/blob/master/variants/lolin_s2_mini/pins_arduino.h
+  // ESP32-S3                https://github.com/espressif/arduino-esp32/blob/master/variants/esp32s3/pins_arduino.h
+  // ESP32-S3-mini           https://github.com/espressif/arduino-esp32/blob/master/variants/lolin_s3_mini/pins_arduino.h
+  // ESP32-C3                https://github.com/espressif/arduino-esp32/blob/master/variants/esp32c3/pins_arduino.h
+
+  #if defined(ESP32)
+    #if (CONFIG_IDF_TARGET_ESP32)
+      return F("ESP32-WROOM-D32 / ESP32-D1-MINI");
+    #elif (CONFIG_IDF_TARGET_ESP32S2)
+      //  MCU      TX   RX   SDA  SCL  SS  MOSI MISO SCK
+      //  S2       43   44    8    9   34   35   37   36
+      //  S2-mini  39   37    33   35  12   11    9    8
+      #if defined(USB_PRODUCT)
+        return USB_PRODUCT;            // LOLIN-S2-MINI
+      #elif (SCL == 35)   
+        return F("LOLIN-S2-MINI");
       #else
-      case  3: return F("D9"); /* D9/RX  */ 
-      case  1: return F("D10");/* D10/TX */ 
+        return F("ESP32-S2");
       #endif
-     }
-  #endif
-  #if defined(ESP32) 
-    // Для ESP32 безопасное подключение ленты к следующим пинам GPIO:
-    // 1,2,3,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27
-    // 1/TX, 3/RX - - если включен отладочный вывод в COM-порт - лента работать не будет 
-    // 21/SDA, 22/SCL - шина I2С - предпочтительна для использования TM1637
-    return "G" + String(pin);
+    #elif (CONFIG_IDF_TARGET_ESP32S3)
+      //  MCU      TX   RX   SDA  SCL  SS  MOSI MISO SCK
+      //  S3       43   44    8    9   10   11   13   12
+      //  S3-mini  43   44    35  36   10   11   13   12
+      #if (SCL == 36)
+        return F("ESP32-S3-MINI");
+      #else
+        return F("ESP32-S3");
+      #endif
+    #elif (CONFIG_IDF_TARGET_ESP32C3)
+      //  MCU      TX   RX   SDA  SCL  SS  MOSI MISO SCK
+      //  C3       21   20    8    9   7     6    5    4
+      //  C3-mini  21   20    8   10   5     4    3    2
+      #if (SCL == 10)
+        return F("ESP32-C3-SUPERMINI");
+      #else
+        return F("ESP32-C3");
+      #endif
+    #else
+      return F("ESP32");
+    #endif
+  #elif defined(ESP8266) 
+    #if defined(ESP8266_NODEMCU)  
+      return F("ESP8266 NodeMCU");
+    #elif defined(ESP8266_WEMOS)
+      return F("ESP8266 Wemos d1 mini");
+    #else
+      return F("ESP8266");
+    #endif
   #else  
-    return F("N/A");
+    return F("Unknown");
   #endif
+}
+
+String humanReadableSize(const size_t bytes) {
+  if (bytes < 1024) return String(bytes) + " B";
+  else if (bytes < (1024 * 1024)) return String(bytes / 1024.0) + " KB";
+  else if (bytes < (1024 * 1024 * 1024)) return String(bytes / 1024.0 / 1024.0) + " MB";
+  else return String(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
 }

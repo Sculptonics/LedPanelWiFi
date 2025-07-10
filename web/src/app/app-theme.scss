@@ -9,8 +9,8 @@
   $background: map.get($theme, background);
   $foreground: map.get($theme, foreground);
 
-  $background-color: mat.get-color-from-palette($background, background);
-  $foreground-color: mat.get-color-from-palette($foreground, text);
+  $background-color: mat.m2-get-color-from-palette($background, background);
+  $foreground-color: mat.m2-get-color-from-palette($foreground, text);
   @if $isDark {
     --app-background-color: #{darken($background-color, 10%)};
     --app-foreground-color: #{darken($foreground-color, 10%)};
@@ -19,8 +19,8 @@
     --app-foreground-color: #{$foreground-color};
   }
 
-  $toolbar-background-color: mat.get-color-from-palette($primary, 800);
-  $toolbar-foreground-color: mat.get-color-from-palette($primary, '800-contrast');
+  $toolbar-background-color: mat.m2-get-color-from-palette($primary, 800);
+  $toolbar-foreground-color: mat.m2-get-color-from-palette($primary, '800-contrast');
   @if $isDark {
     --toolbar-background-color: #393939;
   } @else {
@@ -29,8 +29,7 @@
   --toolbar-foreground-color: #{darken($toolbar-foreground-color, 15%)};
 
   --mdc-plain-tooltip-supporting-text-size: 13px;
-
-  $card-icon-fill-color: #888;
+  --mdc-fab-container-shape: 50%;
 
   :root .mat-mdc-slider.mat-primary {
     --mdc-slider-handle-color: #42a5f5;
@@ -50,13 +49,17 @@
     --card-background-color: #393939;
     --card-active-color: #03afef;
     --card-box-shadow: #aaa;
-    --card-icon-fill-color: #{$card-icon-fill-color};
-    --card-icon-fill-highlight-color: #{lighten($card-icon-fill-color, 20%)}; // rgb(105, 103, 103);
+    --card-text-color: rgba(255, 255, 255, 0.9);
+    --card-icon-disabled-color: rgba(255, 255, 255, 0.6);
+    --card-icon-fill-color: rgba(255, 255, 255, 0.9);
+    --card-icon-fill-highlight-color: rgba(255, 255, 255, 0.8); // rgb(105, 103, 103);
     --card-icon-normal-color: #{darken($toolbar-foreground-color, 15%)};
     --card-icon-active-color: #ffa4a4;
     --color-picker-background: #464646;
     --color-picker-border: #8b8b8b;
+    --section-title-color: #03afef;
     --power-ON: #00dcff;
+    --power-slave-ON: #bf65dc;
     --power-OFF: rgba(255, 255, 255, .5);
     --bright_5: rgba(255, 255, 255, .4);
     --bright_25: rgba(255, 255, 255, .5);
@@ -64,6 +67,7 @@
     --bright_75: rgba(255, 255, 255, .7);
     --bright_100: rgba(255, 255, 255, .8);
     --indicator-ON: #22d722;
+    --indicator-slave-ON: #bf65dc;
     --indicator-OFF: rgba(255, 255, 255, .5);
     --wifi-sign-color: #03afef;
     --app-tilt-color: rgba(72, 72, 72, .25);
@@ -82,7 +86,11 @@
     --radio-button-unchecked: rgba(255, 255, 255, 0.9);
     --radio-button-checked-disabled: #059d05;
     --radio-button-unchecked-disabled: rgba(255, 255, 255, 0.6);
+    --button-back-color: #303F9F;
+    --button-hover-color: #3f4fa7;
     --time-picker-touch-color: #303F9F;
+    --time-picker-touch-fore-color: #FFFFFF;
+    --time-picker-touch-color-hover: #303F9F;
     --play-button-container-color: #303F9F;
     --play-button-disabled-color: #646464;
     --play-button-label-text-color: #fff;
@@ -92,6 +100,10 @@
     --night-active-fore-color: rgb(255, 255, 0);
     --button-disabled-color: #969696;
     --mcu-back-color: #969696;
+    --menu-back-color: #1e1d1d;
+    --mat-menu-container-color: #1e1d1d;
+    --matrix-size-warning: #f4c203;
+    --matrix-size-color: #14e114;
     // @formatter:off
     --text-btn-bgr: rgba(44, 44, 44, 0.9);            // кнопки макросов
     --text-btn-txt: rgba(255, 255, 255, 0.8);         // кнопки макросов
@@ -110,19 +122,21 @@
     --text-btn-txt-5: rgba(255, 255, 255, 0.8);       // - 5 - красный - для строки 0 - это управляющая строка
     --text-btn-bgr-6: rgba(232, 204, 32, 0.9);        // - 6 - желтый - текущая редактируемая ячейка
     --text-btn-txt-6: rgba(0, 0, 0, 0.8);             // - 6 - желтый - текущая редактируемая ячейка
-    // @formatter:oN
+    // @formatter:on
   } @else {
     --card-border-color: #8a8a8a;
     --card-background-color: #fdfdfd;
     --card-active-color: #1976d2;
     --card-box-shadow: #ccc;
-    --card-icon-fill-color: #{$card-icon-fill-color};
-    --card-icon-fill-highlight-color: #{darken($card-icon-fill-color, 20%)}; // rgb(105, 103, 103);
-    --card-icon-normal-color: #{darken($toolbar-foreground-color, 15%)};
+    --card-text-color: rgba(0, 0, 0, 0.9);
+    --card-icon-disabled-color: rgba(0, 0, 0, 0.4);
+    --card-icon-fill-color: rgba(0, 0, 0, 0.6);
     --card-icon-active-color: #ffa4a4;
     --color-picker-background: #ааа;
     --color-picker-border: rgba(0, 0, 0, .2);
+    --section-title-color: #1976d2;
     --power-ON: #00dcff;
+    --power-slave-ON: #bf65dc;
     --power-OFF: rgba(0, 0, 0, .5);
     --bright_5: rgba(0, 0, 0, .1);
     --bright_25: rgba(0, 0, 0, .2);
@@ -130,6 +144,7 @@
     --bright_75: rgba(0, 0, 0, .4);
     --bright_100: rgba(0, 0, 0, .5);
     --indicator-ON: #03ab03;
+    --indicator-slave-ON: #bf65dc;
     --indicator-OFF: rgba(0, 0, 0, .1);
     --wifi-sign-color: #03afef;
     --app-tilt-color: rgba(175, 175, 175, .5);
@@ -148,7 +163,11 @@
     --radio-button-unchecked: rgba(0, 0, 0, 0.6);
     --radio-button-checked-disabled: #a0d7a0;
     --radio-button-unchecked-disabled: rgba(0, 0, 0, 0.3);
+    --button-back-color: #1976d2;
+    --button-hover-color: #1976d2;
     --time-picker-touch-color: #1976d2;
+    --time-picker-touch-fore-color: #FFFFFF;
+    --time-picker-touch-color-hover: #1976d2;
     --play-button-container-color: #1976d2;
     --play-button-disabled-color: #ccc;
     --play-button-label-text-color: #fff;
@@ -158,6 +177,10 @@
     --night-active-fore-color: rgba(255, 27, 27, 0.9);
     --button-disabled-color: #888;
     --mcu-back-color: #efefef;
+    --menu-back-color: #efefef;
+    --mat-menu-container-color: #efefef;
+    --matrix-size-warning: #fd2727;
+    --matrix-size-color: #14e114;
     // @formatter:off
     --text-btn-bgr: rgba(204, 204, 204, 0.8);         // кнопки макросов
     --text-btn-txt: rgba(0, 0, 0, 0.9);               // кнопки макросов
@@ -176,7 +199,7 @@
     --text-btn-txt-5: rgba(255, 255, 255, 0.8);       // - 5 - красный - для строки 0 - это управляющая строка
     --text-btn-bgr-6: rgba(232, 204, 32, 0.9);        // - 6 - желтый - текущая редактируемая ячейка
     --text-btn-txt-6: rgba(0, 0, 0, 0.8);             // - 6 - желтый - текущая редактируемая ячейка
-    // @formatter:oN
+    // @formatter:on
   }
 
   --footer-version: #{darken($toolbar-foreground-color, 15%)};

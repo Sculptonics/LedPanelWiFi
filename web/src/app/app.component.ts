@@ -1,22 +1,46 @@
-import {DOCUMENT} from '@angular/common';
-import {Component, Inject, OnDestroy, OnInit} from '@angular/core';
-import {MatDialogRef} from '@angular/material/dialog';
-import {MatSlideToggleChange} from '@angular/material/slide-toggle';
-import {debounceTime, Subject, takeUntil} from 'rxjs';
-import {distinctUntilChanged} from 'rxjs/operators';
-import {ColorPickerComponent} from './components/color-picker/color-picker.component';
-import {CommonService, MessageType} from './services/common/common.service';
-import {getUptime, isNullOrUndefinedOrEmpty} from './services/helper';
-import {LanguagesService} from './services/languages/languages.service';
-import {ManagementService} from './services/management/management.service';
-import {WebsocketService} from './services/websocket/websocket.service';
+import { DOCUMENT } from '@angular/common';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { MatDialogRef} from '@angular/material/dialog';
+import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { debounceTime, takeUntil } from 'rxjs';
+import { distinctUntilChanged } from 'rxjs/operators';
+import { ColorPickerComponent } from './components/color-picker/color-picker.component';
+import { CommonService, MessageType } from './services/common/common.service';
+import {getUptime, isNullOrUndefined, isNullOrUndefinedOrEmpty} from './services/helper';
+import { LanguagesService } from './services/languages/languages.service';
+import { ManagementService} from './services/management/management.service';
+import { WebsocketService } from './services/websocket/websocket.service';
+import { TabSetupComponent } from './components/tabs/tab-setup/tab-setup.component';
+import { TabGamesComponent } from './components/tabs/tab-games/tab-games.component';
+import { TabDrawComponent } from './components/tabs/tab-draw/tab-draw.component';
+import { TabModesComponent } from './components/tabs/tab-modes/tab-modes.component';
+import { TabAlarmComponent } from './components/tabs/tab-alarm/tab-alarm.component';
+import { TabClockComponent } from './components/tabs/tab-clock/tab-clock.component';
+import { TabTextsPanelComponent } from './components/tabs/tab-texts-panel/tab-texts-panel.component';
+import { TabEffectsComponent } from './components/tabs/tab-effects/tab-effects.component';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatIconModule } from '@angular/material/icon';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipDefaultOptions, MatTooltipModule} from '@angular/material/tooltip';
+import {Base} from "./components/base.class";
+
+export const customTooltipDefaults: MatTooltipDefaultOptions = {
+  showDelay: 1000,
+  hideDelay: 100,
+  touchendHideDelay: 100
+};
 
 @Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss'],
+    standalone: true,
+    imports: [
+      MatToolbarModule, MatIconModule, MatTooltipModule, MatSlideToggleModule, MatTabsModule,
+      TabEffectsComponent, TabTextsPanelComponent, TabClockComponent, TabAlarmComponent, TabModesComponent, TabDrawComponent, TabGamesComponent, TabSetupComponent
+    ]
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent extends Base implements OnInit, OnDestroy {
   private static readonly DARK_THEME_CLASS = 'dark-theme';
 
   get isDarkTheme() {
@@ -44,8 +68,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private freeMemory: number = 0;
 
-  private destroy$ = new Subject();
-
   private colorDialogRef: MatDialogRef<ColorPickerComponent> | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document,
@@ -53,6 +75,7 @@ export class AppComponent implements OnInit, OnDestroy {
               public managementService: ManagementService,
               public commonService: CommonService,
               public L: LanguagesService) {
+    super();
     this.isDarkTheme = window.localStorage[AppComponent.DARK_THEME_CLASS] === 'true' || false;
 
     this.socketService.isConnected$
@@ -60,7 +83,7 @@ export class AppComponent implements OnInit, OnDestroy {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в главном экране
-          const request = 'W|H|PS|LG|VR|HN|QZ|FS|SX|CH|CV|WZ|AL|SM|LE|UP|FM|MC|MX|MZ';
+          const request = 'W|H|HN|CRLE|PS|LG|VR|FS|SX|CH|CV|WZ|AL|SM|UP|FM|PN|MC|MX|MZ|TM';
           this.managementService.getKeys(request);
         }
       });
@@ -103,6 +126,15 @@ export class AppComponent implements OnInit, OnDestroy {
     return !this.managementService.state.power || !this.socketService.isConnected;
   }
 
+  isStreaming(): boolean {
+    return this.managementService.state.e131_mode === 2 && this.managementService.state.e131_streaming === true;
+  }
+
+
+  isInitialized(): boolean {
+    return !isNullOrUndefined(this.managementService.state.e131_streaming);
+  }
+
   getUptimeAndMemoryUsage() {
     if (this.freeMemory > 0 && this.uptime > 0) {
       return `${this.L.$('Время работы:')} ${getUptime(this.uptime, this.L)} --- ${this.L.$('Память:')} ${this.freeMemory} ${this.L.$('байт')}`;
@@ -123,10 +155,4 @@ export class AppComponent implements OnInit, OnDestroy {
   onRightMouseClick(e: MouseEvent) {
     e.preventDefault();
   }
-
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
-  }
-
 }

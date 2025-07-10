@@ -1,24 +1,52 @@
 import {AfterViewInit, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {debounceTime, fromEvent, interval, Observable, Subject, Subscription, takeUntil} from 'rxjs';
+import {debounceTime, fromEvent, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
-import {MatDialog, MatDialogRef} from "@angular/material/dialog";
-import {ColorPickerComponent} from "../../color-picker/color-picker.component";
-import {DOCUMENT} from "@angular/common";
+import {MatDialog} from "@angular/material/dialog";
+import { DOCUMENT, NgClass } from "@angular/common";
 import {distinctUntilChanged} from "rxjs/operators";
 import {HSLA, HSVA, RGBA} from "ngx-color";
 import {isNullOrUndefined, isNullOrUndefinedOrEmpty} from "../../../services/helper";
 import {ConfirmationDialogComponent} from "../../confirmation-dialog/confirmation-dialog.component";
 import {ComboBoxItem} from "../../../models/combo-box.model";
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatOptionModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
+import { DisableControlDirective } from '../../../directives/disable-control.directive';
+import { FormsModule } from '@angular/forms';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { ColorCircleModule } from 'ngx-color/circle';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatIconModule } from '@angular/material/icon';
+import { ColorPhotoshopModule } from 'ngx-color/photoshop';
+import {Base} from "../../base.class";
 
 @Component({
-  selector: 'app-tab-draw',
-  templateUrl: './tab-draw.component.html',
-  styleUrls: ['./tab-draw.component.scss'],
+    selector: 'app-tab-draw',
+    templateUrl: './tab-draw.component.html',
+    styleUrls: ['./tab-draw.component.scss'],
+    standalone: true,
+    imports: [
+        ColorPhotoshopModule,
+        MatIconModule,
+        MatTooltipModule,
+        NgClass,
+        ColorCircleModule,
+        MatFormFieldModule,
+        MatRadioModule,
+        FormsModule,
+        DisableControlDirective,
+        MatSelectModule,
+        MatOptionModule,
+        MatButtonModule,
+        MatInputModule,
+    ],
 })
-export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
+export class TabDrawComponent extends Base implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChild('canvas_container') canvasContainer!: ElementRef;
   @ViewChild('canvas') canvas!: ElementRef;
@@ -36,6 +64,11 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
   active_tool: number = 1;    // 0 - пипетка; 1 - кисть; 2 - ластик
   picture_file: number = -1;  // Выбранный из сохраненных файл картинки
   file_name: string = "";
+
+  mouseDown: boolean = false;
+  touchDown: boolean = false;
+  mouseCellX: number = -1;
+  mouseCellY: number = -1;
 
   get brushColor(): HSLA | HSVA | RGBA | string  {
     return this._brushColor;
@@ -58,7 +91,7 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
   private loadIndex: number = -1;     // индекс загружаемой строки / колонки
   private intervalId: any = undefined;
 
-  private destroy$ = new Subject();
+  private isMobile: boolean = false;
 
   constructor(@Inject(DOCUMENT) private document: Document,
               public socketService: WebsocketService,
@@ -66,9 +99,19 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
               public commonService: CommonService,
               public L: LanguagesService,
               private dialog: MatDialog) {
+    super();
   }
 
   ngOnInit() {
+
+    const ua = navigator.userAgent;
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+      this.isMobile = true;
+    } else
+    if (/Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+      this.isMobile = true;
+    }
+
     fromEvent(window, 'resize')
       .pipe(takeUntil(this.destroy$), debounceTime(250))
       .subscribe( evt => { this.drawCanvas(); } );
@@ -78,7 +121,7 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в главном экране
-          const request: string = `FS|SX|CL|FL${this.storage}`;
+          const request: string = `FS|SX|CL|CRF${this.storage}`;
           this.managementService.getKeys(request);
         }
         // Если соединение пропало во время загрузки картинки - остановить
@@ -197,8 +240,8 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
     // Получить список картинок, найденных в файловой системе или на SD карте в зависимости от
     // текущего выбранного хранилища
     setTimeout(() => {
-      this.managementService.getKeys(`FL${this.storage}`);
-    }, 1000);
+      this.managementService.getKeys(`CRF${this.storage}`);
+    }, 500);
   }
 
   isDisabled(): boolean {
@@ -288,14 +331,96 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
     ctx!.stroke();
   }
 
-  canvasClick($event: MouseEvent) {
+  canvasMouseDown($event: MouseEvent) {
+    if (this.isMobile) return;
+    this.mouseDown = true;
     // @ts-ignore
     const x = $event.layerX - $event.target.offsetLeft;
     // @ts-ignore
     const y = $event.layerY - $event.target.offsetTop;
-
     const cellX = Math.trunc(x / this.cellSize);
     const cellY = Math.trunc(y / this.cellSize);
+    this.mouseCellX = cellX;
+    this.mouseCellY = cellY;
+    this.canvasAction(cellX, cellY)
+  }
+
+  canvasTouchDown($event: TouchEvent) {
+    if (!$event.touches) return;
+    this.touchDown = true;
+    // @ts-ignore
+    const rect = $event.touches[0].target.getBoundingClientRect();
+    // @ts-ignore
+    const x = $event.touches[0].pageX - rect.left;
+    // @ts-ignore
+    const y = $event.touches[0].pageY - rect.top;
+    const cellX = Math.trunc(x / this.cellSize);
+    const cellY = Math.trunc(y / this.cellSize);
+    this.mouseCellX = cellX;
+    this.mouseCellY = cellY;
+    this.canvasAction(cellX, cellY)
+  }
+
+  canvasMouseUp($event: MouseEvent) {
+    this.mouseDown = false;
+    this.mouseCellX = -1;
+    this.mouseCellY = -1;
+  }
+
+  canvasTouchUp($event: TouchEvent) {
+    this.touchDown = false;
+    this.mouseCellX = -1;
+    this.mouseCellY = -1;
+  }
+
+  canvasMouseMove($event: MouseEvent) {
+    if (this.isMobile || !this.mouseDown) return;
+    // @ts-ignore
+    const x = $event.layerX - $event.target.offsetLeft;
+    // @ts-ignore
+    const y = $event.layerY - $event.target.offsetTop;
+    const cellX = Math.trunc(x / this.cellSize);
+    const cellY = Math.trunc(y / this.cellSize);
+    // Если мышка нажата и находится в области рисования и позиция не совпадает с предыдущей - выполнить действие для новой ячейки - рисовать / стирать
+    if (cellX >= 0 && cellY >= 0 &&  cellX < this.managementService.state.width && cellY < this.managementService.state.height && (cellX !== this.mouseCellX || cellY !== this.mouseCellY)) {
+      this.mouseCellX = cellX;
+      this.mouseCellY = cellY;
+      this.canvasAction(cellX, cellY);
+    }
+    $event.stopPropagation();
+    $event.preventDefault();
+  }
+
+  canvasTouchMove($event: TouchEvent) {
+    if (!this.touchDown) return;
+    if (!$event.touches) return;
+    // @ts-ignore
+    const rect = $event.touches[0].target.getBoundingClientRect();
+    // @ts-ignore
+    const x = $event.touches[0].pageX - rect.left;
+    // @ts-ignore
+    const y = $event.touches[0].pageY - rect.top;
+    const cellX = Math.trunc(x / this.cellSize);
+    const cellY = Math.trunc(y / this.cellSize);
+    // Если мышка нажата и находится в области рисования и позиция не совпадает с предыдущей - выполнить действие для новой ячейки - рисовать / стирать
+    if (cellX >= 0 && cellY >= 0 &&  cellX < this.managementService.state.width && cellY < this.managementService.state.height && (cellX !== this.mouseCellX || cellY !== this.mouseCellY)) {
+      this.mouseCellX = cellX;
+      this.mouseCellY = cellY;
+      this.canvasAction(cellX, cellY);
+    }
+    $event.stopPropagation();
+    $event.preventDefault();
+  }
+
+  canvasOutMouseMove($event: MouseEvent) {
+    this.mouseDown = false;
+    this.touchDown = false;
+    this.mouseCellX = -1;
+    this.mouseCellY = -1;
+  }
+
+  canvasAction(cellX: number, cellY: number) {
+    if (cellX < 0 || cellX >= this.managementService.state.width || cellY < 0 || cellY >= this.managementService.state.height) return;
 
     if (this.active_tool === 0) {
       // Пипетка
@@ -463,7 +588,7 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   changeStorage() {
-    this.managementService.getKeys(`FL${this.storage}`);
+    this.managementService.getKeys(`CRF${this.storage}`);
     this.picture_file = -1;
   }
 
@@ -523,9 +648,8 @@ export class TabDrawComponent implements OnInit, OnDestroy, AfterViewInit {
 
   }
 
-  ngOnDestroy() {
+  override ngOnDestroy() {
     this.stopLoadImage();
-    this.destroy$.next(true);
-    this.destroy$.complete();
+    super.ngOnDestroy();
   }
 }

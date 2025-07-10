@@ -26,6 +26,8 @@
 // Скорость перемещения задается слайдером "Вариант". В крайнем левом положении слайдера картинка не перемещается и выводится по центру поля матрицы
 //
 
+#if (USE_ANIMATION == 1)
+
 CRGB     *picture;         // Буфер для загрузки кадра
 int8_t   pic_offset_x;     // Для движущихся картинок - смещение левого верхнего угла
 int8_t   pic_offset_y;
@@ -36,21 +38,20 @@ uint16_t move_delay_y;     // коли-во миллисекунд 5-200 * 10 ч
 int8_t   pic_fade;         // способ появления / скрытия картинки
 
 
-void initialisePictures() {
+void initializePictures() {
 
-  uint8_t saveWidth = pWIDTH;
-  uint8_t saveHeight = pHEIGHT;
   uint8_t tokenCount;
   
   // Для поиска картинок в папке используем процедуру getStoredImages() из animation.ini
   // Поскольку она ищет картинки в папке, соответствующей текущим pWIDTH и pHEIGHT - их нужно будет временно переопределить, в конце процедуры - восстановить
   // Результат из процедуры getStoredImages() - строка с именами файлов, разделенные запятыми
+
+  // Шаг 1. Если eсть SD-карта или эмуляция - ищем слайды на SD-карте в папке, соответствующей размером матрицы
   #if (USE_SD == 1 && FS_AS_SD == 0)
     if (sd_card_ok) {
-      DEBUG(F("Поиск слайдов на SD в папке '"));
-      DEBUGLN(String(pWIDTH) + "p" + String(pHEIGHT) + "'...");
+      DEBUG(F("Поиск слайдов на SD в папке '")); DEBUG(pWIDTH); DEBUG('p'); DEBUG(pHEIGHT); DEBUGLN("'...");
       pictureStorage = "SD";
-      pictureList = getStoredImages(pictureStorage);
+      pictureList = getStoredImages(pictureStorage, pWIDTH, pHEIGHT);
       if (pictureList.length() != 0) {
         pictureWidth = pWIDTH;
         pictureHeight = pHEIGHT;
@@ -58,85 +59,88 @@ void initialisePictures() {
     }
   #endif
 
+  // Шаг 2. Если SD-карты нет или слайды на карте не найдены - ищем слайды в папке файловой системы, соответствующей размером матрицы
   if (pictureList.length() == 0) {
-    DEBUG(F("Поиск слайдов на FS в папке '"));
-    DEBUGLN(String(pWIDTH) + "p" + String(pHEIGHT) + "'...");
+    DEBUG(F("Поиск слайдов на FS в папке '")); DEBUG(pWIDTH); DEBUG('p'); DEBUG(pHEIGHT); DEBUGLN("'...");
     pictureStorage = "FS";
-    pictureList = getStoredImages(pictureStorage);
+    pictureList = getStoredImages(pictureStorage, pWIDTH, pHEIGHT);
     if (pictureList.length() != 0) {
       pictureWidth = pWIDTH;
       pictureHeight = pHEIGHT;
     }    
   }
+  
+  // Если матрица не 16x16 - и файлов не найдено (в файловой системе и на SD-карте) - ищем в папке 16x16
+  // Если размер матрицы и так 16х16 - второй раз сканировать папки незачем
+  if (pictureList.length() == 0 && (pWIDTH != 16 || pHEIGHT != 16)) {
 
-  if (pWIDTH != 16 || pHEIGHT != 16) {
-    pWIDTH = 16;
-    pHEIGHT = 16;
-       
+    // Шаг 3. Если в Шаг 1 не нашли слайдов на SD-карте, соответствующих размеру матрицы - ищем слайды на SD-карте в папке '16p16'
     #if (USE_SD == 1 && FS_AS_SD == 0)
-      if (sd_card_ok && pictureList.length() == 0) {
+      if (sd_card_ok) {
         DEBUGLN(F("Поиск слайдов на SD в папке '16p16'..."));
         pictureStorage = "SD";
-        pictureList = getStoredImages(pictureStorage);
+        pictureList = getStoredImages(pictureStorage, 16, 16);
         if (pictureList.length() != 0) {
-          pictureWidth = pWIDTH;
-          pictureHeight = pHEIGHT;
+          pictureWidth = 16;
+          pictureHeight = 16;
         }    
       }
     #endif
   
+    // Шаг 4. Если в Шаг 2 не нашли слайдов в файловой системе, соответствующих размеру матрицы - ищем слайды в файловой системе в папке '16p16'
     if (pictureList.length() == 0) {
       DEBUGLN(F("Поиск слайдов на FS в папке '16p16'..."));
       pictureStorage = "FS";
-      pictureList = getStoredImages(pictureStorage);
+      pictureList = getStoredImages(pictureStorage, 16, 16);
       if (pictureList.length() != 0) {
-        pictureWidth = pWIDTH;
-        pictureHeight = pHEIGHT;
+        pictureWidth = 16;
+        pictureHeight = 16;
       }    
     }
+    
   }
 
-  if (pictureList.length() == 0) {
+  // Шаг 5. Если ни одного слайда нигде не найдена - слайды будут формироваться из внктренних кадров анимации "Погода"
+  //        Усли хоть что-то найдено в папках файловой системы или на SD-карте - будем использовать найденную анимацию для эффекта "Слайды"
+  if (pictureList.length() == 0) {  
     // Если подходящих картинок не найдено - будем брать картинки 16x16 - фреймы из эффекта "Погода" 
-    pictureStorage = "";
+    pictureStorage.clear();
     pictureWidth = 16;
     pictureHeight = 16;
     // Найти анимацию "Погода", посчитать сколько фреймов в анимации (макс MAX_FRAMES_COUNT)
-    String animList = String(IMAGE_LIST);
-    tokenCount = CountTokens(animList, ',');
-    FOR_i(0,tokenCount) {
-      String animName = GetToken(animList, i + 1, ',');
+    tokenCount = CountTokens(IMAGE_LIST, ',');
+    for (int i = 0; i < tokenCount; i++) {
+      String animName(GetToken(IMAGE_LIST, i + 1, ','));
       if (animName == "Погода") {        
         weatherIndex = i;
         animation_t weather = animations[weatherIndex];
         pictureWidth  = weather.frame_width;
         pictureHeight = weather.frame_height;        
-        FOR_j(j, MAX_FRAMES_COUNT) {
+        for (int j = 0; j < MAX_FRAMES_COUNT; j++) {
           if (weather.frames[j] == NULL) break;
           pictureIndexMax = j + 1;
         }
         break;
       }
     }
+    
     if (pictureIndexMax == 0) {
       DEBUGLN(F("Слайды не найдены"));  
     } else {
       DEBUGLN(F("Слайды не найдены. Будут использованы картинки эффекта 'Погода'"));  
     }
+    
   } else {
+    
     // Печатаем список найденных файлов картинок
     pictureIndexMax = CountTokens(pictureList, ',');
-    DEBUG(String(F("Найдено ")) + String(pictureIndexMax) + String(F(" слайд(oв) размером ")));
-    DEBUGLN(String(pictureWidth) + "x" + String(pictureHeight) + ":");
-    FOR_i(0,pictureIndexMax) {
-      DEBUGLN("   " + GetToken(pictureList, i + 1, ',') + ".p");  
+    DEBUG(F("Найдено ")); DEBUG(pictureIndexMax); DEBUG(F(" слайд(oв) размером ")); DEBUG(pictureWidth); DEBUG('x'); DEBUG(pictureHeight); DEBUGLN(':');
+    for (int i = 0; i < pictureIndexMax; i++) {
+      DEBUG("   "); DEBUG(GetToken(pictureList, i + 1, ',')); DEBUGLN(".p");  
     }
   }
+  
   DEBUGLN();
-
-  // Восстановить текущие размеры
-  pWIDTH = saveWidth;
-  pHEIGHT = saveHeight;
 }
 
 bool getNextSlide() {
@@ -148,8 +152,8 @@ bool getNextSlide() {
     animation_t weather = animations[weatherIndex];
     const uint16_t *frame = weather.frames[pictureIndex];
     // Читаем фрейм из анимации "Погода". Фрейм сохранен в виде 16-битных цветов RGB565 - нужно привести к 24-битному RGB888
-    FOR_y(0, weather.frame_height) {
-      FOR_x (0, weather.frame_width) {                    
+    for (int y = 0; y < weather.frame_height; y++) {
+      for (int x = 0; x < weather.frame_width; x++) {
         uint16_t clr = (pgm_read_word(&(frame[x + (weather.frame_height - y - 1) * weather.frame_width])));
         CRGB color = gammaCorrection(expandColor(clr));
         picture[x + y * weather.frame_width] = color;
@@ -157,11 +161,10 @@ bool getNextSlide() {
     }      
   } else {
     // Загрузка картинки из файла. В файле цвета уже в 24-битном формате RGB888 - расширения не требуют
-    String picFile = GetToken(pictureList, pictureIndex + 1, ',') + ".p";      
-    DEBUG(F("Загрузка слайда '"));
-    DEBUGLN(picFile + "'");      
-    String file = "/" + String(pictureWidth) + "p" + String(pictureHeight) + "/" + picFile;
-    String error = openImage(pictureStorage, file, picture, true);
+    String picFile(GetToken(pictureList, pictureIndex + 1, ',')); picFile += ".p";      
+    DEBUG(F("Загрузка слайда '")); DEBUG(picFile); DEBUGLN("'");      
+    String file('/'); file += pictureWidth; file += 'p'; file += pictureHeight; file += '/'; file += picFile;
+    String error = openImage(pictureStorage, file, picture, true, pWIDTH, pHEIGHT);
     // Была ошибка при загрузке файла?
     res = error.length() == 0;
   }
@@ -174,13 +177,13 @@ void DrawSlide() {
   bool     drawBlack, allBlack;
   int8_t   lim, counter;
   
-  uint8_t  effectBrightness = getBrightnessCalculated(globalBrightness, getEffectContrastValue(thisMode));
+  uint8_t  effectBrightness = getBrightnessCalculated(deviceBrightness, getEffectContrastValue(thisMode));
   FastLED.clear();
 
   // Показ полной картинки
   if (phase == 0) {    
-    FOR_y(0, pictureHeight) {
-      FOR_x (0, pictureWidth) {      
+    for (int y = 0; y < pictureHeight; y++) {
+      for (int x = 0; x < pictureWidth; x++) {      
         idx = x + y * pictureWidth;
         color = picture[idx];
         color = color.nscale8_video(effectBrightness);    
@@ -202,8 +205,8 @@ void DrawSlide() {
     case 4:  // гориз от низа у верху:   Height шагов
     
       counter = (pic_fade == 1 || pic_fade == 2) ? pictureHeight / 2 : pictureHeight;
-      FOR_y(0, counter) {
-        FOR_x (0, pictureWidth) {      
+      for (int y = 0; y < counter; y++) {
+        for (int x = 0; x < pictureWidth; x++) {      
           int16_t idx1 = x + y * pictureWidth;
           int16_t idx2 = x + (pictureHeight - y - 1) * pictureWidth;
           if (pic_fade == 2 || pic_fade == 4) {
@@ -243,8 +246,8 @@ void DrawSlide() {
     case 8:  // верт справа налево -     Width шагов
     
       counter = (pic_fade == 5 || pic_fade == 6) ? pictureWidth / 2 : pictureWidth;
-      FOR_x(0, counter) {
-        FOR_y (0, pictureHeight) {      
+      for (int x = 0; x < counter; x++) {
+        for (int y = 0; y < pictureHeight; y++) {
           int16_t idx1 = x + y * pictureWidth;
           int16_t idx2 = pictureWidth - x - 1 + y * pictureWidth;
           if (pic_fade == 6 || pic_fade == 8) {
@@ -293,8 +296,6 @@ void slideRoutine() {
 
   //  pic_fade  1 - гориз. от центра к краям; 2 - от краев к центру; 3 - от верха к низу; 4 - от низа к верху
   //            5 - верт. от центра к краям;  6 - от краев к центру; 7 - слева направо; 8 - справа налево
-  
-  CRGB color;
   
   if (loadingFlag) {
     // modeCode = MC_SLIDE;
@@ -401,7 +402,7 @@ void slideRoutine() {
   // Ползунок "Скорость" регулирует скорость перемещения картинки слайда по матрице, если размер слайда меньше размера матрицы
   // Если ползунок в крайнем левом положении - картинка не движется, стоит по центру матрицы.
   uint8_t moveDelay = getEffectSpeedValue(thisMode);
-  if (moveDelay > 240) {
+  if (moveDelay > 252) {
     pic_offset_x = (pWIDTH - pictureWidth) / 2;
     pic_offset_y = (pHEIGHT - pictureHeight) / 2; 
     dir_x = 0;
@@ -462,3 +463,5 @@ void slideRoutine() {
 void slideRoutineRelease() {
   if (picture   != NULL) { delete [] picture; picture = NULL; }  
 }
+
+#endif

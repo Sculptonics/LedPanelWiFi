@@ -1,18 +1,21 @@
 import {Component, Input, OnDestroy, OnInit} from '@angular/core';
-import {BehaviorSubject, debounceTime, Subject, takeUntil} from 'rxjs';
+import {BehaviorSubject, debounceTime, takeUntil} from 'rxjs';
 import {WebsocketService} from '../../services/websocket/websocket.service';
+import { MatSliderModule } from '@angular/material/slider';
+import {Base} from "../base.class";
 
 @Component({
-  selector: 'app-brightness-slider',
-  templateUrl: './brightness-slider.component.html',
-  styleUrls: ['./brightness-slider.component.scss']
+    selector: 'app-brightness-slider',
+    templateUrl: './brightness-slider.component.html',
+    styleUrls: ['./brightness-slider.component.scss'],
+    standalone: true,
+    imports: [MatSliderModule]
 })
-export class BrightnessSliderComponent implements OnInit, OnDestroy {
+export class BrightnessSliderComponent extends Base implements OnInit, OnDestroy {
 
   @Input() disabled: boolean = false;
   @Input() value: number = -1;
 
-  private destroy$ = new Subject();
   private valueChanged$ = new BehaviorSubject(this.value);
 
   public get percent(): number {
@@ -20,6 +23,7 @@ export class BrightnessSliderComponent implements OnInit, OnDestroy {
   }
 
   constructor(public socketService: WebsocketService) {
+    super();
   }
 
   ngOnInit(): void {
@@ -42,11 +46,6 @@ export class BrightnessSliderComponent implements OnInit, OnDestroy {
   valueChanged($event: number | null) {
     const value = Math.round(Number($event) * 255 / 100);
     this.valueChanged$.next(value);
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
   }
 
 }

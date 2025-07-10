@@ -5,11 +5,17 @@ import {LanguagesService} from '../../services/languages/languages.service';
 import {ManagementService} from '../../services/management/management.service';
 import {WebsocketService} from '../../services/websocket/websocket.service';
 import {EffectParamsComponent} from '../effect-params/effect-params.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatIconModule } from '@angular/material/icon';
+import { NgClass } from '@angular/common';
+import {CdkDrag} from "@angular/cdk/drag-drop";
 
 @Component({
   selector: 'app-effect',
   templateUrl: './effect.component.html',
-  styleUrls: ['./effect.component.scss']
+  styleUrls: ['./effect.component.scss'],
+  standalone: true,
+  imports: [NgClass, MatIconModule, MatTooltipModule]
 })
 export class EffectComponent implements OnInit {
 
@@ -29,8 +35,19 @@ export class EffectComponent implements OnInit {
   }
 
   activate() {
+    if (this.isStreaming()) return;
     // $8 0 N; включить эффект N
     this.socketService.sendText(`$8 0 ${this.model.id};`);
+  }
+
+  getDisabledTooltip() {
+    return this.managementService.state.e131_mode === 2 && this.managementService.state.e131_streaming === true
+      ? this.L.$('В режиме приема вещания в группе недоступно')
+      : "";
+  }
+
+  isStreaming(): boolean {
+    return this.managementService.state.e131_mode === 2 && this.managementService.state.e131_streaming === true;
   }
 
   settings() {

@@ -1,10 +1,10 @@
 import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
-import {BehaviorSubject, debounceTime, Subject, takeUntil} from 'rxjs';
+import {BehaviorSubject, debounceTime, takeUntil} from 'rxjs';
 import {CommonService} from '../../../services/common/common.service';
 import {LanguagesService} from '../../../services/languages/languages.service';
 import {ManagementService} from '../../../services/management/management.service';
 import {WebsocketService} from '../../../services/websocket/websocket.service';
-import {FormControl, Validators} from "@angular/forms";
+import {FormControl, FormsModule, ReactiveFormsModule, Validators} from "@angular/forms";
 import {AppErrorStateMatcher, isNullOrUndefinedOrEmpty, rangeValidator, replaceAll} from "../../../services/helper";
 import {distinctUntilChanged} from "rxjs/operators";
 import {RGBA} from "ngx-color";
@@ -12,6 +12,24 @@ import {ColorPickerComponent} from "../../color-picker/color-picker.component";
 import {MatDialog, MatDialogRef} from "@angular/material/dialog";
 import {ComboBoxItem} from "../../../models/combo-box.model";
 import {isValidDate} from "rxjs/internal/util/isDate";
+import {MatDatepickerModule} from '@angular/material/datepicker';
+import {MatMenuModule} from '@angular/material/menu';
+import {MatIconModule} from '@angular/material/icon';
+import {MatTooltipModule} from '@angular/material/tooltip';
+import {MatSliderModule} from '@angular/material/slider';
+import {MatRadioModule} from '@angular/material/radio';
+import {MatButtonModule} from '@angular/material/button';
+import {NgClass} from '@angular/common';
+import {DisableControlDirective} from '../../../directives/disable-control.directive';
+import {MatInputModule} from '@angular/material/input';
+import {MatFormFieldModule} from '@angular/material/form-field';
+import {MatSlideToggleModule} from '@angular/material/slide-toggle';
+import {Base} from "../../base.class";
+import {MatCheckbox} from '@angular/material/checkbox';
+import * as FileSaver from 'file-saver';
+import {FileUploadModule} from "ng2-file-upload";
+import {FileUploaderWrapper} from "../../../services/file.uploader.wrapper";
+import {ConfirmationDialogComponent} from "../../confirmation-dialog/confirmation-dialog.component";
 
 export class TextButtonItem {
   constructor(public label: string, public index: number, public type: number, public text: string) {
@@ -22,18 +40,37 @@ export class TextButtonItem {
   selector: 'app-tab-texts',
   templateUrl: './tab-texts.component.html',
   styleUrls: ['./tab-texts.component.scss'],
+  standalone: true,
+  imports: [
+    MatSlideToggleModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    ReactiveFormsModule,
+    DisableControlDirective,
+    MatButtonModule,
+    MatRadioModule,
+    MatSliderModule,
+    MatTooltipModule,
+    NgClass,
+    MatIconModule,
+    MatMenuModule,
+    MatDatepickerModule,
+    MatCheckbox,
+    FileUploadModule,
+  ],
 })
-export class TabTextsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
+export class TabTextsComponent extends Base implements OnInit, OnDestroy {
 
   @ViewChild('text', {static: true}) text!: ElementRef;
   @ViewChild('dateR', {static: true}) dateR!: ElementRef;
   @ViewChild('dateP', {static: true}) dateP!: ElementRef;
   @ViewChild('dateS1', {static: true}) dateS1!: ElementRef;
   @ViewChild('dateS2', {static: true}) dateS2!: ElementRef;
+  @ViewChild('uploadFileForm', {static: true}) uploadFileForm!: ElementRef;
 
   // @formatter:off
-  public text_color_mode = -1;           // CT  - CT:X	режим цвета текстовой строки: 0 - монохром, 1 - радуга, 2 - каждая буква своим цветом
+  public text_color_mode = -1;          // CT  - CT:X	режим цвета текстовой строки: 0 - монохром, 1 - радуга, 2 - каждая буква своим цветом
   public text_use_overlay = false;      // TE  - TE:X	оверлей текста бегущей строки вкл/выкл, где Х = 0 - выкл; 1 - вкл (использовать бегущую строку в эффектах)
   public text_scroll_speed = -1;        // ST  - ST:число	скорость смещения бегущей строки
   public text_cells_type = '';           // TS  - TS:строка - строка состояния кнопок выбора текста из массива строк: 36 символов 0..5, где
@@ -59,24 +96,53 @@ export class TabTextsComponent implements OnInit, OnDestroy {
 
   public repeatNum: number = 1;
   public repeatTime: number = 30;
-
-  private colorDialogRef: MatDialogRef<ColorPickerComponent> | null = null;
+  public show_degree = false;
+  public show_letter = false;
   private speedChanged$ = new BehaviorSubject(this.text_scroll_speed);
   private macros_text_color: RGBA = {r: 255, g: 255, b: 255, a: 1};
   private macros_back_color: RGBA = {r: 0, g: 0, b: 0, a: 1};
   private dateApplied: boolean = false;
+  private e131_mode: number = -1;
+  private e131_streaming: boolean | undefined = undefined;
+  private text_action = '';
+
+  private colorDialogRef: MatDialogRef<ColorPickerComponent> | null = null;
+  private dialogRef: MatDialogRef<ConfirmationDialogComponent> | null = null;
 
   constructor(
     public socketService: WebsocketService,
     public managementService: ManagementService,
     public commonService: CommonService,
+    public fileUploaderWrapper: FileUploaderWrapper,
     public L: LanguagesService,
     private dialog: MatDialog) {
+
+    super();
+
+    this.fileUploaderWrapper.complete$.subscribe((result) => {
+      if (result.result === 'success') {
+        // Файл загружен успешно - отправить на контроллер команду разбора загруженного файла и сохранение из него строк в файловую систему микроконтроллера
+        this.importTexts();
+        this.dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+          width: '400px',
+          panelClass: 'centralized-dialog-content',
+          data: {title: this.L.$('Импорт'), message: this.L.$('Wait for import completed'), useCancel: false, useOk: false }
+        });
+        this.dialogRef.afterClosed().subscribe(result => { this.dialogRef = null; });
+      } else if (result.result === 'error') {
+        // Вывести сообщение об ошибке
+        this.dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+          width: '400px',
+          panelClass: 'centralized-dialog-content',
+          data: {title: this.L.$('Ошибка'), message: this.L.$('Upload text error'), useCancel: false, okText: this.L.$('OK') }
+        });
+        this.dialogRef.afterClosed().subscribe(result => { this.dialogRef = null; });
+      }
+    })
 
     const str = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     for (let i = 0; i < str.length; i++) {
       this.buttons.push(new TextButtonItem(str[i], i, 0, ''));
-
       this.buttons[i].text = this.managementService.text_lines[i];
     }
 
@@ -101,7 +167,7 @@ export class TabTextsComponent implements OnInit, OnDestroy {
       .subscribe((isConnected: boolean) => {
         if (isConnected) {
           // При первом соединении сокета с устройством запросить параметры, используемые в экране
-          const request = 'CT|TE|TI|ST|TS|C2|MX|WZ';
+          const request = 'CT|TE|TI|ST|TS|C2|MX|WZ|E1|E4|WW';
           this.managementService.getKeys(request);
         }
       });
@@ -157,12 +223,59 @@ export class TabTextsComponent implements OnInit, OnDestroy {
               }
               break;
             case 'MX':
+              // Если в прошивке включена поддержка MP3-плеера - запросить контрольную сумму списка звуков нотификации
+              // Если список уже загружен и контрольная суппа совпадает - использовать сохраненный в localStorage
+              // Если список не загружен или контрольная сумма не совпадает - запросить список (обработка в management.service.ts)
               if (this.managementService.state.supportMP3) {
-                this.managementService.getKeys('S3');
+                this.managementService.getKeys('CRS3');
               }
               break;
             case 'WZ':
               this.supportWeather = this.managementService.state.supportWeather;
+              break;
+            case 'WW':
+              const props = this.managementService.state.show_temp_text_props;
+              this.show_degree = (props & 0x02) > 0;
+              this.show_letter = (props & 0x01) > 0;
+              break;
+            case 'E1':
+              this.e131_mode = this.managementService.state.e131_mode;
+              break;
+            case 'E4':
+              this.e131_streaming = this.managementService.state.e131_streaming;
+              break;
+            case 'TXT':
+              if (this.managementService.state.text_action == this.text_action) {
+
+                // Файл экспорта подготовлен для загрузки - загрузить его и сохранить на диск
+                if (this.text_action === 'EXPORT') {
+                  // На сервер был отправлен запрос на создание файла с текстами на сервер.
+                  // После того как микроконтроллер выполнил операцию - он присылает ответ с key='TXT' и флагом выполненной операции - 'EXPORT'
+                  // Сообщение получено - выполнить загрузку и сохранение файла /a/texts.txt с сервера
+                  const fileName = 'texts.txt';
+                  const url = `/a/${fileName}`;
+                  this.socketService.getFile(url)
+                    .subscribe({
+                      next: file_data => {
+                          const file = new File([file_data], fileName, { type: 'application/x-www-form-urlencoded; charset=UTF-8' });
+                          FileSaver.saveAs(file);
+                      },
+                      error: error => this.socketService.handleError(this, `Не удалось загрузить файл ${fileName}`, error)
+                    });
+                } else
+
+                // Файл импортирован - нужно переинициализировать текстовые строки
+                if (this.text_action === 'IMPORT') {
+                  // Очистить текст на кнопках - он будет заменен на вновь загруженный
+                  for (let i = 0; i < this.buttons.length; i++) this.buttons[i].text = '';
+                  this.managementService.loadTextLines();   // Выполнить перезагрузку текстовых строк (асинхронно)
+                  this.managementService.getKeys('TS');     // Запросить строку типов ячеек
+                  this.dialogRef?.close();                  // Закрыть диалог "Эдите завершение импорта..."
+                }
+
+                this.managementService.state.text_action = '';
+                this.text_action = '';
+              }
               break;
           }
         }
@@ -181,13 +294,24 @@ export class TabTextsComponent implements OnInit, OnDestroy {
   }
 
   isDisabled(): boolean {
-    return (
-      !this.managementService.state.power || !this.socketService.isConnected
-    );
+    return !this.socketService.isConnected;
+  }
+
+  isDisabledByIncomeStream(): boolean {
+    // Нет подключения или режим - слушатель и идет вещание
+    return this.isDisabled() || (this.e131_mode === 2 && this.e131_streaming === true);
   }
 
   isDisabled2(): boolean {
     return this.isDisabled() || this.text_index < 0;
+  }
+
+  getPreviewButtonTooltip(): string {
+    return this.managementService.state.isNightClockRunnung()
+      ? this.L.$('В режиме ночных часов просмотр недоступен')
+      : (this.e131_mode === 2 && this.e131_streaming === true
+        ? this.L.$('В режиме приема вещания в группе недоступно')
+        : this.L.$('Просмотр строки без сохранения'));
   }
 
   formatLabel(value: number) {
@@ -257,8 +381,7 @@ export class TabTextsComponent implements OnInit, OnDestroy {
     let text = '';
     switch (this.buttons[i].type) {
       case 0:
-        text = this.L.$('Текст не задан');
-        break;
+        return this.L.$('Текст не задан');
       case 1:
         text = this.L.$('Строка отключена');
         break;
@@ -275,8 +398,8 @@ export class TabTextsComponent implements OnInit, OnDestroy {
         text = this.L.$('Содержит управляющую последовательность');
         break;
     }
-    if (this.buttons[i].text.length > 0) {
-      text += '\n' + this.buttons[i].text;
+    if (!isNullOrUndefinedOrEmpty(this.buttons[i].text.trim())) {
+      text += '\n' + this.buttons[i].text.trim();
     }
     return text;
   }
@@ -287,7 +410,7 @@ export class TabTextsComponent implements OnInit, OnDestroy {
 
   saveText() {
     // $6 0|текст  - текст бегущей строки "$6 0|X|text" - X - 0..9,A..Z - индекс строки, text - сохраняемый текст
-    const text = replaceAll(this.text.nativeElement.value, '\n', ' ');
+    const text = this.text_index === 0 ? this.text.nativeElement.value : this.text.nativeElement.value.replace(/\n/g, ' ').replace(/\u0000/g, ' ').trim();
     this.socketService.sendText(`$6 0|${this.buttons[this.text_index].label}|${text}`);
     this.buttons[this.text_index].text = text;
     this.managementService.text_lines[this.text_index] = text;
@@ -295,12 +418,11 @@ export class TabTextsComponent implements OnInit, OnDestroy {
 
   showText() {
     // $6 14|текст - текст бегущей строки для немедленного отображения без сохранения
-    const text = replaceAll(this.text.nativeElement.value, '\n', ' ');
+    const text = this.text.nativeElement.value.replace(/\n/g, ' ').replace(/\u0000/g, ' ').trim();
     this.socketService.sendText(`$6 14|${text}`);
   }
 
   clearText() {
-    // $6 14|текст - текст бегущей строки для немедленного отображения без сохранения
     this.text.nativeElement.value = '';
     this.text_edit = '';
   }
@@ -472,9 +594,43 @@ export class TabTextsComponent implements OnInit, OnDestroy {
     this.dateApplied = true;
   }
 
-  ngOnDestroy() {
-    this.destroy$.next(true);
-    this.destroy$.complete();
+  setTempShowDegree(checked: boolean) {
+    this.show_degree = checked;
+    const value = (this.show_degree ? 0x02 : 0x00) | (this.show_letter ? 0x01 : 0x00);
+    this.socketService.sendText(`$13 3 ${value};`);
+    this.managementService.state.show_temp_text_props = value;
+  }
+
+  setTempShowLetter(checked: boolean) {
+    this.show_letter = checked;
+    const value = (this.show_degree ? 0x02 : 0x00) | (this.show_letter ? 0x01 : 0x00);
+    this.socketService.sendText(`$13 3 ${value};`);
+    this.managementService.state.show_temp_text_props = value;
+  }
+
+  importTexts() {
+    // Запоминаем текущую выполняемую операцитю с текстовыми строками - 'IMPORT" или 'EXPORT'
+    // Отправить команду импорта текстовых строк из загруженного файла
+    this.text_action = 'IMPORT';
+    this.socketService.sendText(`$13 16`);
+  }
+
+  exportTexts() {
+    // Запоминаем текущую выполняемую операцитю с текстовыми строками - 'IMPORT" или 'EXPORT'
+    // Отправляем запрос на создание файла с текстами на сервер.
+    // После того как микроконтроллер выполнит операцию - он пришлет ответ с key='TXT' и флагом выполненной операции - 'EXPORT'
+    // При получении такого сообщения - выполнить загрузку и сохранение файла
+    this.text_action = 'EXPORT';
+    this.socketService.sendText(`$13 17`);
+  }
+
+  onUpload() {
+    this.fileUploaderWrapper.onFileSelect(
+      this.L.$("Загрузить"),
+      this.L.$("Загрузить"),
+      this.uploadFileForm,
+      '/a/',
+      { confirmationMessage: null, fileNewName: 'texts.txt' });
   }
 
 }

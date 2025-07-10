@@ -19,15 +19,21 @@ void InitializeDfPlayer1() {
 #if (USE_MP3 == 1)
   DEBUGLN(F("\nИнициализация MP3-плеера..."));
   isDfPlayerOk = true;
-  #if defined(ESP32)
-    // Используются аппаратный RX2/TX2 - GPIO 16/17 - mp3Serial это аппаратный Serial2
+  #if (CONFIG_IDF_TARGET_ESP32)
+    // ESP32-WROOM-32
+    // Используются аппаратный UART2 RX2/TX2 - GPIO 16/17 - mp3Serial это аппаратный Serial2
     mp3Serial.begin(9600);
   #else  
-    // Используются назначенные пины - mp3Serial это программный SoftwareSerial
+    // ESP8266, ESP32-S2/S3/C3
+    // Используются назначенные пины - mp3Serial это программный SoftwareSerial для ESP8266 или аппаратный с назначением пинов на ESP32-S2/S3/C3
     int8_t srx_pin = getDFPlayerSRXPin();
     int8_t stx_pin = getDFPlayerSTXPin();
     if (srx_pin >= 0 && stx_pin >= 0) {
-      mp3Serial.begin(9600, SWSERIAL_8N1, srx_pin, stx_pin);    
+      #if defined(ESP8266)
+        mp3Serial.begin(9600, SWSERIAL_8N1, srx_pin, stx_pin);    
+      #else  
+        mp3Serial.begin(9600, SERIAL_8N1, srx_pin, stx_pin);    
+      #endif  
     } else {
       return;
     }
@@ -58,10 +64,14 @@ void InitializeDfPlayer2() {
   int8_t srx_pin = getDFPlayerSRXPin();
   int8_t stx_pin = getDFPlayerSTXPin();
   if (srx_pin >= 0 && stx_pin >= 0) {
-    refreshDfPlayerFiles();    
-    DEBUGLN(String(F("Звуков будильника найдено: ")) + String(alarmSoundsCount));
-    DEBUGLN(String(F("Звуков рассвета найдено: ")) + String(dawnSoundsCount));
-    DEBUGLN(String(F("Звуков сообщений найдено: ")) + String(noteSoundsCount));
+    refreshDfPlayerFiles();
+    DEBUG(F("Звуков будильника найдено: "));
+    DEBUGLN(alarmSoundsCount);
+    DEBUG(F("Звуков рассвета найдено: "));
+    DEBUGLN(dawnSoundsCount);
+    DEBUG(F("Звуков сообщений найдено: "));
+    DEBUGLN(noteSoundsCount);
+    DEBUGLN();
     set_isDfPlayerOk(alarmSoundsCount + dawnSoundsCount + noteSoundsCount > 0);
   } else {
     set_isDfPlayerOk(false);
@@ -72,7 +82,7 @@ void InitializeDfPlayer2() {
 }
 
 void Delay(int16_t duration) {
-  //delay(duration);
+  delay(duration);
 }
 
 #if (USE_MP3 == 1)
@@ -118,8 +128,9 @@ void refreshDfPlayerFiles() {
   } while ((val == 0 || new_val == 0 || val != new_val) && cnt < 3);    
   noteSoundsCount = val < 0 ? 0 : val;
 
-  DEBUGLN();  
+  DEBUGLN();    
 }
+
 #endif
 
 void PlayAlarmSound() {
@@ -176,7 +187,7 @@ void PlayDawnSound() {
   #endif
 }
 
-void StopSound(int16_t duration) {
+void StopSound([[maybe_unused]] int16_t duration) {
 
   if (!isDfPlayerOk) return;
 
@@ -264,40 +275,59 @@ public:
     }
   }
     
-  static void OnError(DfMp3& mp3, uint16_t errorCode)
+  static void OnError([[maybe_unused]] DfMp3& mp3, uint16_t errorCode)
   {
     // see DfMp3_Error for code meaning
     printErrorDetail(errorCode);
   }
   
-  static void OnPlayFinished(DfMp3& mp3, DfMp3_PlaySources source, uint16_t track)
+  static void OnPlayFinished([[maybe_unused]] DfMp3& mp3, [[maybe_unused]] DfMp3_PlaySources source, uint16_t track)
   {
-    DEBUG(F("Трек завершен #"));
-    DEBUGLN(track);  
+    DEBUG(F("Трек завершен #")); DEBUGLN(track);      
     if (!(isAlarming || isPlayAlarmSound) && soundFolder == 0 && soundFile == 0 && runTextSound <= 0) {
       dfPlayer.stop(); Delay(GUARD_DELAY);
-    } else
+    }
     // Перезапустить звук, если установлен его повтор
-    if (runTextSound > 0 && runTextSoundRepeat) {
-      dfPlayer.playFolderTrack(3, runTextSound); Delay(GUARD_DELAY);
+    if (runTextSound >= 0 && runTextSoundRepeat) {
+
+      // Вот тут просто так перезапустить звук не удается - плеер просто игнорирует 
+      // команды перезапуска и повторного воспроизведения звука не наблюдаетмя :(
+      
+      // dfPlayer.setVolume(constrain(maxAlarmVolume,1,30));  Delay(GUARD_DELAY);
+      // dfPlayer.playFolderTrack(3, runTextSound);           Delay(GUARD_DELAY);
+      // playingTextSound = runTextSound;
+
+      // Поэтому просто сбрасываем Id текущего играющего звука playingTextSound
+      // Сам Id звука который нужно играть - в runTextSound остается нетронутым,
+      // Флаг повтора воспроизведения runTextSoundRepeat также остается нетронутым 
+      // Также устанавливаем время когда закончил воспроизводиться звук.
+      // По-видимому если попытаться включить воспроизведение не выдержав некоторой hgfeps - плеер проигнорирует команду
+      // Перезапуск звука дожен произойти в основном цикле в custom.ino, когда таймаут пройдет, обнаружит флаг необходимости повтора runTextSoundRepeat
+      // и что текущий играемый звук playingTextSound == -1 не совпадает со звуком, который нужно играть runTextSound - запустится команда старта воспроизведения
+      
+      //if (millis() - runTextSoundTime > 1000) {
+        playingTextSound = -1;  
+        runTextSoundFirst = true;
+      //}
+      runTextSoundTime = millis();
     }    
   }
   
-  static void OnPlaySourceOnline(DfMp3& mp3, DfMp3_PlaySources source)
+  static void OnPlaySourceOnline([[maybe_unused]] DfMp3& mp3, [[maybe_unused]] DfMp3_PlaySources source)
   {
     PrintlnSourceAction(source, "готова");
     InitializeDfPlayer2();
     if (!isDfPlayerOk) DEBUGLN(F("MP3 плеер недоступен."));    
   }
   
-  static void OnPlaySourceInserted(DfMp3& mp3, DfMp3_PlaySources source)
+  static void OnPlaySourceInserted([[maybe_unused]] DfMp3& mp3, [[maybe_unused]] DfMp3_PlaySources source)
   {
     PrintlnSourceAction(source, "вставлена");
     InitializeDfPlayer2();
     if (!isDfPlayerOk) DEBUGLN(F("MP3 плеер недоступен."));    
   }
   
-  static void OnPlaySourceRemoved(DfMp3& mp3, DfMp3_PlaySources source)
+  static void OnPlaySourceRemoved([[maybe_unused]] DfMp3& mp3, [[maybe_unused]] DfMp3_PlaySources source)
   {
     PrintlnSourceAction(source, "удалена");
     // Карточка "отвалилась" - делаем недоступным все что связано с MP3 плеером
